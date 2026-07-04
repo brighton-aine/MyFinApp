@@ -1,0 +1,48 @@
+[data-testid="stAppViewContainer"] {
+    background: #0F172A;
+}
+
+[data-testid="stSidebar"] {
+    background: #1E293B;
+}
+
+h1,
+h2,
+h3 {
+    color: #60A5FA;
+}
+
+p,
+label,
+span {
+    color: #F8FAFC;
+}
+
+div[data-testid="metric-container"] {
+    background: #1E293B;
+    border: 1px solid #2563EB;
+    border-radius: 20px;
+    padding: 15px;
+}
+
+.stButton>button {
+    background: #2563EB;
+    color: white;
+    border-radius: 10px;
+    border: none;
+}
+
+.stButton>button:hover {
+    background: #1D4ED8;
+}
+
+.stDownloadButton>button {
+    background: #10B981;
+    color: white;
+}
+
+.stTextInput input,
+.stNumberInput input {
+    background: #334155;
+    color: white;
+}
