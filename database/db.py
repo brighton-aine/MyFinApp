@@ -52,15 +52,30 @@ def create_tables():
     """)
 
     # Goals
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS goals(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        goal_name TEXT,
-        target REAL,
-        current REAL
-    )
-    """)
+ cursor.execute("""
+CREATE TABLE IF NOT EXISTS goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_name TEXT NOT NULL,
+    target REAL NOT NULL DEFAULT 0,
+    current REAL NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
 
+# Upgrade existing databases
+try:
+    cursor.execute(
+        "ALTER TABLE goals ADD COLUMN target REAL DEFAULT 0"
+    )
+except:
+    pass
+
+try:
+    cursor.execute(
+        "ALTER TABLE goals ADD COLUMN current REAL DEFAULT 0"
+    )
+except:
+    pass
     # Users
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users(
