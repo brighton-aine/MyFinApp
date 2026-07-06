@@ -51,41 +51,49 @@ def create_tables():
     )
     """)
 
-  # Goals
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS goals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    goal_name TEXT NOT NULL,
-    target REAL NOT NULL DEFAULT 0,
-    current REAL NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-""")
-
-# Upgrade existing databases
-try:
-    cursor.execute(
-        "ALTER TABLE goals ADD COLUMN target REAL DEFAULT 0"
+    # Goals
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS goals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_name TEXT,
+        target REAL DEFAULT 0,
+        current REAL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-except Exception:
-    pass
+    """)
 
-try:
-    cursor.execute(
-        "ALTER TABLE goals ADD COLUMN current REAL DEFAULT 0"
+    # Check columns
+    columns = [
+        row[1]
+        for row in cursor.execute(
+            "PRAGMA table_info(goals)"
+        ).fetchall()
+    ]
+
+    if "goal_name" not in columns:
+        cursor.execute(
+            "ALTER TABLE goals ADD COLUMN goal_name TEXT"
+        )
+
+    if "target" not in columns:
+        cursor.execute(
+            "ALTER TABLE goals ADD COLUMN target REAL DEFAULT 0"
+        )
+
+    if "current" not in columns:
+        cursor.execute(
+            "ALTER TABLE goals ADD COLUMN current REAL DEFAULT 0"
+        )
+
+    # Users
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        email TEXT UNIQUE,
+        password TEXT
     )
-except Exception:
-    pass
+    """)
 
-# Users
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    email TEXT UNIQUE,
-    password TEXT
-)
-""")
-
-conn.commit()
-conn.close()
+    conn.commit()
+    conn.close()

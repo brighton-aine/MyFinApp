@@ -2,6 +2,11 @@ import streamlit as st
 import sqlite3
 import hashlib
 
+from database.db import create_tables
+
+# Create/update database tables
+create_tables()
+
 st.set_page_config(
     page_title="MyFinApp",
     page_icon="💰",
@@ -34,7 +39,7 @@ else:
         ["🔐 Login", "📝 Register"]
     )
 
-    # LOGIN TAB
+    # LOGIN
 
     with login_tab:
 
@@ -84,7 +89,7 @@ else:
                     "Invalid username or password"
                 )
 
-    # REGISTER TAB
+    # REGISTER
 
     with register_tab:
 
@@ -121,7 +126,7 @@ else:
                     )
                     VALUES
                     (
-                        ?,?,?
+                        ?, ?, ?
                     )
                     """,
                     (
@@ -137,10 +142,10 @@ else:
                     "Registration successful."
                 )
 
-            except:
+            except Exception:
 
                 st.error(
-                    "Username already exists."
+                    "Username or email already exists."
                 )
 
 conn.close()
