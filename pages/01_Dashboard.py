@@ -1,19 +1,29 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import plotly.express as px
 
-import streamlit as st
+from database.db import get_connection
 
+# -------------------------
+# SECURITY
+# -------------------------
 if "user" not in st.session_state:
-    st.warning(
-        "Please login first."
-    )
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
+    st.warning("Please login first.")
+    st.switch_page("app.py")
     st.stop()
 
+# -------------------------
+# PAGE TITLE
+# -------------------------
 st.title("Financial Health Dashboard")
 
-conn = sqlite3.connect("database.db")
+# -------------------------
+# DATABASE
+# -------------------------
+conn = get_connection()
 
 income = pd.read_sql(
     "SELECT * FROM income",
@@ -25,6 +35,9 @@ expenses = pd.read_sql(
     conn
 )
 
+# -------------------------
+# CALCULATIONS
+# -------------------------
 total_income = (
     income["amount"].sum()
     if not income.empty
@@ -53,17 +66,25 @@ if total_income > 0:
 
     if ratio >= 0.8:
         health_score = 45
+
     elif ratio >= 0.6:
         health_score = 70
+
     else:
         health_score = 90
 
+# -------------------------
+# HEADER
+# -------------------------
 st.markdown("""
 ### Welcome Back
 
 Monitor your financial health, savings and spending trends.
 """)
 
+# -------------------------
+# METRICS
+# -------------------------
 col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric(
@@ -91,6 +112,9 @@ col5.metric(
     f"{health_score}/100"
 )
 
+# -------------------------
+# CHARTS
+# -------------------------
 if not expenses.empty:
 
     chart1, chart2 = st.columns(2)
@@ -103,15 +127,7 @@ if not expenses.empty:
             expenses,
             names="category",
             values="amount",
-            hole=0.65,
-            color_discrete_sequence=[
-                "#F97316",
-                "#3B82F6",
-                "#10B981",
-                "#8B5CF6",
-                "#EC4899",
-                "#14B8A6"
-            ]
+            hole=0.65
         )
 
         pie.update_layout(
@@ -144,10 +160,7 @@ if not expenses.empty:
         trend = px.area(
             monthly,
             x="month",
-            y="amount",
-            color_discrete_sequence=[
-                "#3B82F6"
-            ]
+            y="amount"
         )
 
         trend.update_layout(
@@ -160,6 +173,9 @@ if not expenses.empty:
             use_container_width=True
         )
 
+# -------------------------
+# AI FINANCIAL COACH
+# -------------------------
 st.subheader("AI Financial Coach")
 
 if savings_rate > 30:
@@ -180,4 +196,7 @@ else:
         "Savings are low. Consider reducing discretionary expenses."
     )
 
+# -------------------------
+# CLOSE CONNECTION
+# -------------------------
 conn.close()
