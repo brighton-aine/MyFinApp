@@ -62,7 +62,7 @@ def create_tables():
     )
     """)
 
-    # Check columns
+    # Fix old databases
     columns = [
         row[1]
         for row in cursor.execute(

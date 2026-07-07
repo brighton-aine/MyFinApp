@@ -1,10 +1,12 @@
 import streamlit as st
-import sqlite3
 import hashlib
 
-from database.db import create_tables
+from database.db import (
+    create_tables,
+    get_connection
+)
 
-# Create/update database tables
+# Create tables at startup
 create_tables()
 
 st.set_page_config(
@@ -16,9 +18,10 @@ st.set_page_config(
 if "user" not in st.session_state:
     st.session_state["user"] = None
 
-conn = sqlite3.connect("database.db")
+conn = get_connection()
 cursor = conn.cursor()
 
+# USER LOGGED IN
 if st.session_state["user"]:
 
     st.title("💰 MyFinApp")
@@ -31,6 +34,7 @@ if st.session_state["user"]:
         "Select a menu item from the sidebar."
     )
 
+# LOGIN / REGISTER
 else:
 
     st.title("💰 MyFinApp")
@@ -40,7 +44,6 @@ else:
     )
 
     # LOGIN
-
     with login_tab:
 
         username = st.text_input(
@@ -90,7 +93,6 @@ else:
                 )
 
     # REGISTER
-
     with register_tab:
 
         new_user = st.text_input(
@@ -139,7 +141,7 @@ else:
                 conn.commit()
 
                 st.success(
-                    "Registration successful."
+                    "Registration successful. You can now login."
                 )
 
             except Exception:

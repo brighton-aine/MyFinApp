@@ -1,8 +1,13 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 
-import streamlit as st
+from database.db import (
+    get_connection,
+    create_tables
+)
+
+# Ensure tables exist
+create_tables()
 
 if "user" not in st.session_state:
     st.warning(
@@ -10,9 +15,9 @@ if "user" not in st.session_state:
     )
     st.stop()
 
-st.title("Savings Goals")
+st.title("🎯 Savings Goals")
 
-conn = sqlite3.connect("database.db")
+conn = get_connection()
 cursor = conn.cursor()
 
 with st.form("goal_form"):
@@ -23,12 +28,14 @@ with st.form("goal_form"):
 
     target = st.number_input(
         "Target Amount",
-        min_value=0.0
+        min_value=0.0,
+        format="%.2f"
     )
 
     current = st.number_input(
         "Current Amount",
-        min_value=0.0
+        min_value=0.0,
+        format="%.2f"
     )
 
     submit = st.form_submit_button(
@@ -37,47 +44,94 @@ with st.form("goal_form"):
 
 if submit:
 
-    cursor.execute(
-        """
-        INSERT INTO goals
-        (goal_name,target,current)
-        VALUES (?,?,?)
-        """,
-        (
-            goal_name,
-            target,
-            current
+    try:
+
+        cursor.execute(
+            """
+            INSERT INTO goals
+            (
+                goal_name,
+                target,
+                current
+            )
+            VALUES
+            (
+                ?, ?, ?
+            )
+            """,
+            (
+                goal_name,
+                target,
+                current
+            )
         )
-    )
 
-    conn.commit()
+        conn.commit()
 
-goals = pd.read_sql(
-    "SELECT * FROM goals",
-    conn
-)
+        st.success(
+            "Goal saved successfully."
+        )
 
-for _, row in goals.iterrows():
+    except Exception as e:
 
-    progress = (
-        row["current"] /
-        row["target"]
-        if row["target"] > 0
-        else 0
-    )
+        st.error(
+            f"Error saving goal: {e}"
+        )
 
-    st.markdown(
-        f"""
-        ### {row['goal_name']}
+try:
 
-        UGX {row['current']:,.0f}
-        of
-        UGX {row['target']:,.0f}
+    goals = pd.read_sql(
         """
+        SELECT *
+        FROM goals
+        ORDER BY id DESC
+        """,
+        conn
     )
 
-    st.progress(
-        min(progress,1.0)
+    if len(goals) > 0:
+
+        st.subheader(
+            "Your Goals"
+        )
+
+        for _, row in goals.iterrows():
+
+            if row["target"] > 0:
+
+                progress = (
+                    row["current"]
+                    / row["target"]
+                )
+
+            else:
+
+                progress = 0
+
+            st.markdown(
+                f"""
+                ### {row['goal_name']}
+
+                **Current Amount:** UGX {row['current']:,.0f}
+
+                **Target Amount:** UGX {row['target']:,.0f}
+                """
+            )
+
+            st.progress(
+                min(progress, 1.0)
+            )
+
+    else:
+
+        st.info(
+            "No goals added yet."
+        )
+
+except Exception as e:
+
+    st.error(
+        f"Error loading goals: {e}"
     )
 
 conn.close()
