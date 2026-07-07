@@ -1,6 +1,19 @@
 import streamlit as st
+import pandas as pd
 
-# Security check
+from database.db import (
+    get_connection,
+    create_tables
+)
+
+# -------------------------
+# INITIALIZE DATABASE
+# -------------------------
+create_tables()
+
+# -------------------------
+# SECURITY
+# -------------------------
 if "user" not in st.session_state:
     st.session_state["user"] = None
 
@@ -10,25 +23,21 @@ if st.session_state["user"] is None:
     )
     st.switch_page("app.py")
     st.stop()
-from database.db import (
-    get_connection,
-    create_tables
-)
 
-# Ensure tables exist
-create_tables()
-
-if "user" not in st.session_state:
-    st.warning(
-        "Please login first."
-    )
-    st.stop()
-
+# -------------------------
+# PAGE TITLE
+# -------------------------
 st.title("🎯 Savings Goals")
 
+# -------------------------
+# DATABASE
+# -------------------------
 conn = get_connection()
 cursor = conn.cursor()
 
+# -------------------------
+# GOAL FORM
+# -------------------------
 with st.form("goal_form"):
 
     goal_name = st.text_input(
@@ -48,45 +57,59 @@ with st.form("goal_form"):
     )
 
     submit = st.form_submit_button(
-        "Save Goal"
+        "💾 Save Goal"
     )
 
+# -------------------------
+# SAVE GOAL
+# -------------------------
 if submit:
 
-    try:
+    if goal_name.strip() == "":
 
-        cursor.execute(
-            """
-            INSERT INTO goals
-            (
-                goal_name,
-                target,
-                current
-            )
-            VALUES
-            (
-                ?, ?, ?
-            )
-            """,
-            (
-                goal_name,
-                target,
-                current
-            )
+        st.warning(
+            "Please enter a goal name."
         )
 
-        conn.commit()
+    else:
 
-        st.success(
-            "Goal saved successfully."
-        )
+        try:
 
-    except Exception as e:
+            cursor.execute(
+                """
+                INSERT INTO goals
+                (
+                    goal_name,
+                    target,
+                    current
+                )
+                VALUES
+                (
+                    ?, ?, ?
+                )
+                """,
+                (
+                    goal_name,
+                    target,
+                    current
+                )
+            )
 
-        st.error(
-            f"Error saving goal: {e}"
-        )
+            conn.commit()
 
+            st.success(
+                "Goal saved successfully."
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"Error saving goal: {e}"
+            )
+
+# -------------------------
+# DISPLAY GOALS
+# -------------------------
 try:
 
     goals = pd.read_sql(
@@ -98,7 +121,7 @@ try:
         conn
     )
 
-    if len(goals) > 0:
+    if not goals.empty:
 
         st.subheader(
             "Your Goals"
@@ -119,12 +142,12 @@ try:
 
             st.markdown(
                 f"""
-                ### {row['goal_name']}
+### {row['goal_name']}
 
-                **Current Amount:** UGX {row['current']:,.0f}
+**Current Amount:** UGX {row['current']:,.0f}
 
-                **Target Amount:** UGX {row['target']:,.0f}
-                """
+**Target Amount:** UGX {row['target']:,.0f}
+"""
             )
 
             st.progress(
@@ -143,4 +166,7 @@ except Exception as e:
         f"Error loading goals: {e}"
     )
 
+# -------------------------
+# CLOSE CONNECTION
+# -------------------------
 conn.close()
