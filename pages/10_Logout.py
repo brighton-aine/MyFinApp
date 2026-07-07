@@ -1,13 +1,12 @@
 import streamlit as st
 
-st.title("🚪 Logout")
+st.session_state["user"] = None
 
-if st.button("Logout"):
+for key in list(st.session_state.keys()):
+    del st.session_state[key]
 
-    st.session_state.clear()
+st.success(
+    "Logged out successfully."
+)
 
-    st.success(
-        "Logged out successfully."
-    )
-
-    st.rerun()
+st.switch_page("app.py")

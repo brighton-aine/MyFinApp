@@ -1,9 +1,15 @@
 import streamlit as st
-import sqlite3
-import pandas as pd
-import plotly.express as px
 
-import streamlit as st
+# Security check
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
+    st.warning(
+        "Please login first."
+    )
+    st.switch_page("app.py")
+    st.stop()
 
 if "user" not in st.session_state:
     st.warning(

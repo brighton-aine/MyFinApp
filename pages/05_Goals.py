@@ -1,6 +1,15 @@
 import streamlit as st
-import pandas as pd
 
+# Security check
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
+    st.warning(
+        "Please login first."
+    )
+    st.switch_page("app.py")
+    st.stop()
 from database.db import (
     get_connection,
     create_tables
