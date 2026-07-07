@@ -1,15 +1,6 @@
 import streamlit as st
-
-# Security check
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-
-if st.session_state["user"] is None:
-    st.warning(
-        "Please login first."
-    )
-    st.switch_page("app.py")
-    st.stop()
+import pandas as pd
+import matplotlib.pyplot as plt
 
 from io import BytesIO
 from datetime import date
@@ -24,69 +15,82 @@ from reportlab.lib.styles import (
     getSampleStyleSheet
 )
 
-import streamlit as st
+from database.db import (
+    get_connection,
+    create_tables
+)
+
+# -------------------------
+# SECURITY
+# -------------------------
+create_tables()
 
 if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
     st.warning(
         "Please login first."
     )
+    st.switch_page("app.py")
     st.stop()
-# ======================
-# PAGE HEADER
-# ======================
 
+# -------------------------
+# PAGE TITLE
+# -------------------------
 st.title("📑 Financial Reports")
 
-# ======================
+# -------------------------
 # DATABASE
-# ======================
+# -------------------------
+conn = get_connection()
 
-conn = sqlite3.connect("database.db")
-
-# ======================
+# -------------------------
 # DATE FILTERS
-# ======================
-
+# -------------------------
 col1, col2 = st.columns(2)
 
 with col1:
+
     start_date = st.date_input(
         "Start Date",
         value=date(date.today().year, 1, 1)
     )
 
 with col2:
+
     end_date = st.date_input(
         "End Date",
         value=date.today()
     )
 
-# ======================
+# -------------------------
 # LOAD DATA
-# ======================
-
+# -------------------------
 income = pd.read_sql(
-    f"""
+    """
     SELECT *
     FROM income
-    WHERE date BETWEEN
-    '{start_date}'
-    AND
-    '{end_date}'
+    WHERE date BETWEEN ? AND ?
     """,
-    conn
+    conn,
+    params=[
+        str(start_date),
+        str(end_date)
+    ]
 )
 
 expenses = pd.read_sql(
-    f"""
+    """
     SELECT *
     FROM expenses
-    WHERE date BETWEEN
-    '{start_date}'
-    AND
-    '{end_date}'
+    WHERE date BETWEEN ? AND ?
     """,
-    conn
+    conn,
+    params=[
+        str(start_date),
+        str(end_date)
+    ]
 )
 
 budgets = pd.read_sql(
@@ -99,10 +103,9 @@ goals = pd.read_sql(
     conn
 )
 
-# ======================
+# -------------------------
 # CALCULATIONS
-# ======================
-
+# -------------------------
 total_income = (
     income["amount"].sum()
     if not income.empty
@@ -123,10 +126,6 @@ savings_rate = (
     else 0
 )
 
-# ======================
-# FINANCIAL HEALTH SCORE
-# ======================
-
 health_score = 100
 
 if total_income > 0:
@@ -136,18 +135,20 @@ if total_income > 0:
     )
 
     if spending_ratio > 0.80:
+
         health_score = 45
 
     elif spending_ratio > 0.60:
+
         health_score = 70
 
     else:
+
         health_score = 90
 
-# ======================
+# -------------------------
 # KPI CARDS
-# ======================
-
+# -------------------------
 st.subheader("📊 Summary")
 
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -179,10 +180,9 @@ c5.metric(
 
 st.divider()
 
-# ======================
-# INCOME ANALYSIS
-# ======================
-
+# -------------------------
+# INCOME SUMMARY
+# -------------------------
 if not income.empty:
 
     st.subheader(
@@ -201,10 +201,9 @@ if not income.empty:
         use_container_width=True
     )
 
-# ======================
-# EXPENSE ANALYSIS
-# ======================
-
+# -------------------------
+# EXPENSE SUMMARY
+# -------------------------
 if not expenses.empty:
 
     st.subheader(
@@ -223,10 +222,9 @@ if not expenses.empty:
         use_container_width=True
     )
 
-# ======================
+# -------------------------
 # PIE CHART
-# ======================
-
+# -------------------------
 if not expenses.empty:
 
     st.subheader(
@@ -251,10 +249,9 @@ if not expenses.empty:
 
     st.pyplot(fig)
 
-# ======================
-# GOAL REPORT
-# ======================
-
+# -------------------------
+# GOALS
+# -------------------------
 if not goals.empty:
 
     st.subheader(
@@ -266,10 +263,9 @@ if not goals.empty:
         use_container_width=True
     )
 
-# ======================
-# BUDGET REPORT
-# ======================
-
+# -------------------------
+# BUDGETS
+# -------------------------
 if not budgets.empty:
 
     st.subheader(
@@ -281,10 +277,9 @@ if not budgets.empty:
         use_container_width=True
     )
 
-# ======================
-# ANNUAL INCOME REPORT
-# ======================
-
+# -------------------------
+# ANNUAL INCOME
+# -------------------------
 if not income.empty:
 
     income["date"] = pd.to_datetime(
@@ -312,10 +307,9 @@ if not income.empty:
         use_container_width=True
     )
 
-# ======================
+# -------------------------
 # EXCEL EXPORT
-# ======================
-
+# -------------------------
 excel_buffer = BytesIO()
 
 with pd.ExcelWriter(
@@ -353,10 +347,9 @@ st.download_button(
     file_name="MyFinApp_Report.xlsx"
 )
 
-# ======================
+# -------------------------
 # PDF EXPORT
-# ======================
-
+# -------------------------
 pdf_buffer = BytesIO()
 
 doc = SimpleDocTemplate(
@@ -383,10 +376,6 @@ story.append(
         f"Period: {start_date} to {end_date}",
         styles["Normal"]
     )
-)
-
-story.append(
-    Spacer(1, 12)
 )
 
 story.append(
@@ -417,13 +406,6 @@ story.append(
     )
 )
 
-story.append(
-    Paragraph(
-        f"Financial Health Score: {health_score}/100",
-        styles["Normal"]
-    )
-)
-
 doc.build(story)
 
 st.download_button(
@@ -433,8 +415,7 @@ st.download_button(
     mime="application/pdf"
 )
 
-# ======================
-# CLOSE DATABASE
-# ======================
-
+# -------------------------
+# CLOSE CONNECTION
+# -------------------------
 conn.close()
