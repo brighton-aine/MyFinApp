@@ -1,49 +1,130 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 
-import streamlit as st
+from database.db import get_connection
 
+# -------------------------
+# SECURITY
+# -------------------------
 if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
     st.warning(
         "Please login first."
     )
+    st.switch_page("app.py")
     st.stop()
+
+# -------------------------
+# PAGE TITLE
+# -------------------------
 st.title("💰 Budget Management")
 
-conn = sqlite3.connect("database.db")
+# -------------------------
+# DATABASE
+# -------------------------
+conn = get_connection()
 cursor = conn.cursor()
 
-category = st.text_input("Category")
+# -------------------------
+# BUDGET FORM
+# -------------------------
+st.subheader("Create Budget")
+
+category = st.text_input(
+    "Category"
+)
 
 budget = st.number_input(
     "Monthly Budget",
-    min_value=0.0
+    min_value=0.0,
+    format="%.2f"
 )
 
 if st.button("💾 Save Budget"):
 
-    cursor.execute(
+    if category.strip() == "":
+
+        st.warning(
+            "Please enter a budget category."
+        )
+
+    else:
+
+        try:
+
+            cursor.execute(
+                """
+                INSERT INTO budgets
+                (
+                    category,
+                    budget
+                )
+                VALUES
+                (
+                    ?, ?
+                )
+                """,
+                (
+                    category,
+                    budget
+                )
+            )
+
+            conn.commit()
+
+            st.success(
+                "Budget saved successfully."
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"Error saving budget: {e}"
+            )
+
+# -------------------------
+# DISPLAY BUDGETS
+# -------------------------
+try:
+
+    budgets = pd.read_sql(
         """
-        INSERT INTO budgets
-        (category,budget)
-        VALUES (?,?)
+        SELECT *
+        FROM budgets
+        ORDER BY id DESC
         """,
-        (category,budget)
+        conn
     )
 
-    conn.commit()
+    st.subheader(
+        "Budget Records"
+    )
 
-    st.success("Budget Saved")
+    st.dataframe(
+        budgets,
+        use_container_width=True
+    )
 
-budgets = pd.read_sql(
-    "SELECT * FROM budgets",
-    conn
-)
+    if not budgets.empty:
 
-st.dataframe(
-    budgets,
-    use_container_width=True
-)
+        total_budget = budgets[
+            "budget"
+        ].sum()
 
+        st.metric(
+            "Total Budget",
+            f"UGX {total_budget:,.0f}"
+        )
+
+except Exception as e:
+
+    st.error(
+        f"Error loading budgets: {e}"
+    )
+
+# -------------------------
+# CLOSE CONNECTION
+# -------------------------
 conn.close()
