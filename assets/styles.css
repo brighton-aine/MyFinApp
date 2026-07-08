@@ -1,48 +1,238 @@
+/* =====================================================
+   APP BACKGROUND
+===================================================== */
+
 [data-testid="stAppViewContainer"] {
-    background: #0F172A;
+    background-color: #F8FAFC;
 }
 
-[data-testid="stSidebar"] {
-    background: #1E293B;
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg,
+            #0F172A,
+            #1E293B);
 }
 
-h1,
-h2,
+section[data-testid="stSidebar"] * {
+    color: white !important;
+}
+
+/* =====================================================
+   MAIN HEADERS
+===================================================== */
+
+h1 {
+    color: #0F172A !important;
+    font-weight: 800 !important;
+    font-size: 42px !important;
+}
+
+h2 {
+    color: #0F172A !important;
+    font-weight: 700 !important;
+}
+
 h3 {
-    color: #60A5FA;
+    color: #0F172A !important;
+    font-weight: 600 !important;
 }
+
+/* =====================================================
+   TEXT
+===================================================== */
 
 p,
 label,
 span {
-    color: #F8FAFC;
+    color: #475569;
 }
+
+/* =====================================================
+   KPI CARDS
+===================================================== */
 
 div[data-testid="metric-container"] {
-    background: #1E293B;
-    border: 1px solid #2563EB;
+
+    background: white;
+
     border-radius: 20px;
-    padding: 15px;
+
+    padding: 20px;
+
+    box-shadow:
+        0px 4px 16px rgba(0, 0, 0, 0.08);
+
+    border-left: 5px solid #2563EB;
 }
 
+[data-testid="stMetricValue"] {
+    color: #0F172A;
+    font-size: 30px;
+    font-weight: 800;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #64748B;
+    font-size: 14px;
+}
+
+/* =====================================================
+   INPUTS
+===================================================== */
+
+.stTextInput input,
+.stNumberInput input,
+.stDateInput input,
+textarea {
+
+    border-radius: 12px !important;
+
+    border: 1px solid #CBD5E1 !important;
+
+    background: white !important;
+
+    color: #0F172A !important;
+}
+
+/* =====================================================
+   SELECTBOX
+===================================================== */
+
+.stSelectbox div[data-baseweb="select"] {
+
+    background: white !important;
+
+    border-radius: 12px;
+}
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
 .stButton>button {
-    background: #2563EB;
-    color: white;
-    border-radius: 10px;
-    border: none;
+
+    background: #2563EB !important;
+
+    color: white !important;
+
+    border-radius: 12px !important;
+
+    border: none !important;
+
+    font-weight: 600 !important;
+
+    height: 50px;
+
+    width: 100%;
 }
 
 .stButton>button:hover {
-    background: #1D4ED8;
+
+    background: #1D4ED8 !important;
 }
+
+/* =====================================================
+   DOWNLOAD BUTTON
+===================================================== */
 
 .stDownloadButton>button {
-    background: #10B981;
-    color: white;
+
+    background: #10B981 !important;
+
+    color: white !important;
+
+    border-radius: 12px !important;
+
+    border: none !important;
 }
 
-.stTextInput input,
-.stNumberInput input {
-    background: #334155;
-    color: white;
+/* =====================================================
+   TABLES
+===================================================== */
+
+thead tr th {
+
+    background-color: #2563EB !important;
+
+    color: white !important;
+
+    font-weight: bold !important;
+}
+
+/* =====================================================
+   DATAFRAMES
+===================================================== */
+
+.stDataFrame {
+
+    background: white;
+
+    border-radius: 18px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0px 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* =====================================================
+   PLOTLY CHARTS
+===================================================== */
+
+.stPlotlyChart {
+
+    background: white;
+
+    padding: 15px;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0px 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* =====================================================
+   SUCCESS
+===================================================== */
+
+.stSuccess {
+
+    border-radius: 15px;
+}
+
+/* =====================================================
+   WARNING
+===================================================== */
+
+.stWarning {
+
+    border-radius: 15px;
+}
+
+/* =====================================================
+   INFO
+===================================================== */
+
+.stInfo {
+
+    border-radius: 15px;
+}
+
+/* =====================================================
+   EXPANDERS
+===================================================== */
+
+details {
+
+    background: white;
+
+    border-radius: 18px;
+
+    padding: 10px;
+
+    box-shadow:
+        0px 4px 12px rgba(0, 0, 0, 0.05);
 }

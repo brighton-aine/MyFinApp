@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 from io import BytesIO
 from datetime import date
@@ -15,46 +15,57 @@ from reportlab.lib.styles import (
     getSampleStyleSheet
 )
 
+from utils import (
+    require_login,
+    load_css,
+    render_sidebar,
+    page_header,
+    money
+)
+
 from database.db import (
     get_connection,
     create_tables
 )
 
-# -------------------------
-# SECURITY
-# -------------------------
+# =====================================================
+# APP SETUP
+# =====================================================
+
+load_css()
+require_login()
+render_sidebar()
+
+page_header(
+    "📑 Financial Reports Center",
+    "Analyze income, expenses, goals and budgets."
+)
+
+# =====================================================
+# DATABASE
+# =====================================================
+
 create_tables()
 
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-
-if st.session_state["user"] is None:
-    st.warning(
-        "Please login first."
-    )
-    st.switch_page("app.py")
-    st.stop()
-
-# -------------------------
-# PAGE TITLE
-# -------------------------
-st.title("📑 Financial Reports")
-
-# -------------------------
-# DATABASE
-# -------------------------
 conn = get_connection()
 
-# -------------------------
+# =====================================================
 # DATE FILTERS
-# -------------------------
+# =====================================================
+
+st.subheader("📅 Report Period")
+
 col1, col2 = st.columns(2)
 
 with col1:
 
     start_date = st.date_input(
         "Start Date",
-        value=date(date.today().year, 1, 1)
+        value=date(
+            date.today().year,
+            1,
+            1
+        )
     )
 
 with col2:
@@ -64,9 +75,10 @@ with col2:
         value=date.today()
     )
 
-# -------------------------
+# =====================================================
 # LOAD DATA
-# -------------------------
+# =====================================================
+
 income = pd.read_sql(
     """
     SELECT *
@@ -94,18 +106,25 @@ expenses = pd.read_sql(
 )
 
 budgets = pd.read_sql(
-    "SELECT * FROM budgets",
+    """
+    SELECT *
+    FROM budgets
+    """,
     conn
 )
 
 goals = pd.read_sql(
-    "SELECT * FROM goals",
+    """
+    SELECT *
+    FROM goals
+    """,
     conn
 )
 
-# -------------------------
+# =====================================================
 # CALCULATIONS
-# -------------------------
+# =====================================================
+
 total_income = (
     income["amount"].sum()
     if not income.empty
@@ -118,10 +137,13 @@ total_expenses = (
     else 0
 )
 
-balance = total_income - total_expenses
+balance = (
+    total_income -
+    total_expenses
+)
 
 savings_rate = (
-    balance / total_income * 100
+    (balance / total_income) * 100
     if total_income > 0
     else 0
 )
@@ -131,14 +153,15 @@ health_score = 100
 if total_income > 0:
 
     spending_ratio = (
-        total_expenses / total_income
+        total_expenses /
+        total_income
     )
 
-    if spending_ratio > 0.80:
+    if spending_ratio >= 0.80:
 
         health_score = 45
 
-    elif spending_ratio > 0.60:
+    elif spending_ratio >= 0.60:
 
         health_score = 70
 
@@ -146,44 +169,201 @@ if total_income > 0:
 
         health_score = 90
 
-# -------------------------
+# =====================================================
 # KPI CARDS
-# -------------------------
-st.subheader("📊 Summary")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-c1.metric(
-    "Income",
-    f"UGX {total_income:,.0f}"
-)
-
-c2.metric(
-    "Expenses",
-    f"UGX {total_expenses:,.0f}"
-)
-
-c3.metric(
-    "Balance",
-    f"UGX {balance:,.0f}"
-)
-
-c4.metric(
-    "Savings %",
-    f"{savings_rate:.1f}%"
-)
-
-c5.metric(
-    "Health Score",
-    f"{health_score}/100"
-)
+# =====================================================
 
 st.divider()
 
-# -------------------------
+c1, c2, c3, c4, c5 = st.columns(5)
+
+with c1:
+
+    st.metric(
+        "💵 Income",
+        money(total_income)
+    )
+
+with c2:
+
+    st.metric(
+        "💸 Expenses",
+        money(total_expenses)
+    )
+
+with c3:
+
+    st.metric(
+        "🏦 Balance",
+        money(balance)
+    )
+
+with c4:
+
+    st.metric(
+        "📈 Savings %",
+        f"{savings_rate:.1f}%"
+    )
+
+with c5:
+
+    st.metric(
+        "❤️ Health Score",
+        f"{health_score}/100"
+    )
+
+# =====================================================
+# OVERVIEW CHARTS
+# =====================================================
+
+st.divider()
+
+left, right = st.columns(2)
+
+with left:
+
+    compare_df = pd.DataFrame(
+        {
+            "Category": [
+                "Income",
+                "Expenses"
+            ],
+            "Amount": [
+                total_income,
+                total_expenses
+            ]
+        }
+    )
+
+    fig = px.bar(
+        compare_df,
+        x="Category",
+        y="Amount",
+        color="Category",
+        color_discrete_map={
+            "Income": "#10B981",
+            "Expenses": "#EF4444"
+        }
+    )
+
+    fig.update_layout(
+        height=450,
+        showlegend=False,
+        title="Income vs Expenses"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+with right:
+
+    fig = px.pie(
+        values=[
+            health_score,
+            100 - health_score
+        ],
+        names=[
+            "Health",
+            "Remaining"
+        ],
+        hole=0.75
+    )
+
+    fig.update_layout(
+        height=450,
+        title="Financial Health"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
+# EXPENSE DISTRIBUTION
+# =====================================================
+
+if not expenses.empty:
+
+    st.divider()
+
+    st.subheader(
+        "📊 Expense Distribution"
+    )
+
+    expense_chart = (
+        expenses
+        .groupby("category")["amount"]
+        .sum()
+        .reset_index()
+    )
+
+    fig = px.pie(
+        expense_chart,
+        names="category",
+        values="amount",
+        hole=0.65
+    )
+
+    fig.update_layout(
+        height=500
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
+# MONTHLY EXPENSE TREND
+# =====================================================
+
+if not expenses.empty:
+
+    st.divider()
+
+    expenses["date"] = pd.to_datetime(
+        expenses["date"]
+    )
+
+    monthly_expenses = (
+        expenses
+        .groupby(
+            expenses["date"]
+            .dt.strftime("%Y-%m")
+        )["amount"]
+        .sum()
+        .reset_index()
+    )
+
+    fig = px.area(
+        monthly_expenses,
+        x="date",
+        y="amount",
+        color_discrete_sequence=[
+            "#2563EB"
+        ]
+    )
+
+    fig.update_layout(
+        height=450,
+        title="Monthly Spending Trend"
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
 # INCOME SUMMARY
-# -------------------------
+# =====================================================
+
 if not income.empty:
+
+    st.divider()
 
     st.subheader(
         "💵 Income by Category"
@@ -196,18 +376,25 @@ if not income.empty:
         .reset_index()
     )
 
-    st.dataframe(
-        income_summary,
-        use_container_width=True
+    income_summary["amount"] = (
+        income_summary["amount"]
+        .apply(money)
     )
 
-# -------------------------
+    st.dataframe(
+        income_summary,
+        use_container_width=True,
+        height=350
+    )
+
+# =====================================================
 # EXPENSE SUMMARY
-# -------------------------
+# =====================================================
+
 if not expenses.empty:
 
     st.subheader(
-        "💸 Expense by Category"
+        "💸 Expenses by Category"
     )
 
     expense_summary = (
@@ -217,45 +404,27 @@ if not expenses.empty:
         .reset_index()
     )
 
+    expense_summary["amount"] = (
+        expense_summary["amount"]
+        .apply(money)
+    )
+
     st.dataframe(
         expense_summary,
-        use_container_width=True
+        use_container_width=True,
+        height=350
     )
 
-# -------------------------
-# PIE CHART
-# -------------------------
-if not expenses.empty:
+# =====================================================
+# GOALS REPORT
+# =====================================================
 
-    st.subheader(
-        "📈 Expense Distribution"
-    )
-
-    fig, ax = plt.subplots(
-        figsize=(6, 6)
-    )
-
-    chart_data = (
-        expenses
-        .groupby("category")["amount"]
-        .sum()
-    )
-
-    ax.pie(
-        chart_data,
-        labels=chart_data.index,
-        autopct="%1.1f%%"
-    )
-
-    st.pyplot(fig)
-
-# -------------------------
-# GOALS
-# -------------------------
 if not goals.empty:
 
+    st.divider()
+
     st.subheader(
-        "🎯 Goal Progress Report"
+        "🎯 Goals Report"
     )
 
     st.dataframe(
@@ -263,10 +432,13 @@ if not goals.empty:
         use_container_width=True
     )
 
-# -------------------------
-# BUDGETS
-# -------------------------
+# =====================================================
+# BUDGET REPORT
+# =====================================================
+
 if not budgets.empty:
+
+    st.divider()
 
     st.subheader(
         "💰 Budget Report"
@@ -277,39 +449,66 @@ if not budgets.empty:
         use_container_width=True
     )
 
-# -------------------------
-# ANNUAL INCOME
-# -------------------------
-if not income.empty:
+# =====================================================
+# FINANCIAL ADVICE
+# =====================================================
 
-    income["date"] = pd.to_datetime(
-        income["date"]
-    )
+st.divider()
 
-    income["year"] = (
-        income["date"]
-        .dt.year
-    )
+if savings_rate >= 30:
 
-    annual_income = (
-        income
-        .groupby("year")["amount"]
-        .sum()
-        .reset_index()
-    )
+    advice = """
+    Excellent financial discipline.
+    Continue investing and
+    growing wealth.
+    """
 
-    st.subheader(
-        "📅 Annual Income Summary"
-    )
+elif savings_rate >= 10:
 
-    st.dataframe(
-        annual_income,
-        use_container_width=True
-    )
+    advice = """
+    Good performance.
+    Look for opportunities
+    to increase savings.
+    """
 
-# -------------------------
+else:
+
+    advice = """
+    Savings are currently low.
+    Reduce expenses and
+    increase income sources.
+    """
+
+st.markdown(
+    f"""
+    <div style="
+    background:linear-gradient(
+        135deg,
+        #2563EB,
+        #7C3AED
+    );
+    padding:25px;
+    border-radius:18px;
+    color:white;
+    ">
+        <h3 style="color:white;">
+        🤖 Financial Recommendation
+        </h3>
+
+        <p>
+        {advice}
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# =====================================================
 # EXCEL EXPORT
-# -------------------------
+# =====================================================
+
+st.divider()
+
 excel_buffer = BytesIO()
 
 with pd.ExcelWriter(
@@ -347,9 +546,10 @@ st.download_button(
     file_name="MyFinApp_Report.xlsx"
 )
 
-# -------------------------
+# =====================================================
 # PDF EXPORT
-# -------------------------
+# =====================================================
+
 pdf_buffer = BytesIO()
 
 doc = SimpleDocTemplate(
@@ -380,21 +580,21 @@ story.append(
 
 story.append(
     Paragraph(
-        f"Total Income: UGX {total_income:,.0f}",
+        f"Total Income: {money(total_income)}",
         styles["Normal"]
     )
 )
 
 story.append(
     Paragraph(
-        f"Total Expenses: UGX {total_expenses:,.0f}",
+        f"Total Expenses: {money(total_expenses)}",
         styles["Normal"]
     )
 )
 
 story.append(
     Paragraph(
-        f"Balance: UGX {balance:,.0f}",
+        f"Balance: {money(balance)}",
         styles["Normal"]
     )
 )
@@ -415,7 +615,8 @@ st.download_button(
     mime="application/pdf"
 )
 
-# -------------------------
+# =====================================================
 # CLOSE CONNECTION
-# -------------------------
+# =====================================================
+
 conn.close()

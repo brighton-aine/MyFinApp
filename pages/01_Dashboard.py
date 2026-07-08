@@ -2,27 +2,33 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from utils import (
+    require_login,
+    load_css,
+    render_sidebar,
+    page_header,
+    money
+)
+
 from database.db import get_connection
 
-# -------------------------
-# SECURITY
-# -------------------------
-if "user" not in st.session_state:
-    st.session_state["user"] = None
+# =====================================================
+# APP SETUP
+# =====================================================
 
-if st.session_state["user"] is None:
-    st.warning("Please login first.")
-    st.switch_page("app.py")
-    st.stop()
+load_css()
+require_login()
+render_sidebar()
 
-# -------------------------
-# PAGE TITLE
-# -------------------------
-st.title("Financial Health Dashboard")
+page_header(
+    "💰 Financial Health Dashboard",
+    "Monitor income, expenses, savings and financial health."
+)
 
-# -------------------------
+# =====================================================
 # DATABASE
-# -------------------------
+# =====================================================
+
 conn = get_connection()
 
 income = pd.read_sql(
@@ -35,9 +41,20 @@ expenses = pd.read_sql(
     conn
 )
 
-# -------------------------
+# =====================================================
+# SAFETY
+# =====================================================
+
+if "amount" not in income.columns:
+    income["amount"] = 0
+
+if "amount" not in expenses.columns:
+    expenses["amount"] = 0
+
+# =====================================================
 # CALCULATIONS
-# -------------------------
+# =====================================================
+
 total_income = (
     income["amount"].sum()
     if not income.empty
@@ -50,7 +67,10 @@ total_expenses = (
     else 0
 )
 
-balance = total_income - total_expenses
+balance = (
+    total_income -
+    total_expenses
+)
 
 savings_rate = (
     (balance / total_income) * 100
@@ -58,145 +78,330 @@ savings_rate = (
     else 0
 )
 
-health_score = 100
-
 if total_income > 0:
 
-    ratio = total_expenses / total_income
+    ratio = (
+        total_expenses /
+        total_income
+    )
 
-    if ratio >= 0.8:
+    if ratio >= 0.80:
+
         health_score = 45
 
-    elif ratio >= 0.6:
+    elif ratio >= 0.60:
+
         health_score = 70
 
     else:
+
         health_score = 90
 
-# -------------------------
-# HEADER
-# -------------------------
-st.markdown("""
-### Welcome Back
+else:
 
-Monitor your financial health, savings and spending trends.
-""")
+    health_score = 100
 
-# -------------------------
-# METRICS
-# -------------------------
+# =====================================================
+# KPI CARDS
+# =====================================================
+
 col1, col2, col3, col4, col5 = st.columns(5)
 
-col1.metric(
-    "Income",
-    f"UGX {total_income:,.0f}"
-)
+with col1:
 
-col2.metric(
-    "Expenses",
-    f"UGX {total_expenses:,.0f}"
-)
+    st.metric(
+        "💵 Income",
+        money(total_income)
+    )
 
-col3.metric(
-    "Balance",
-    f"UGX {balance:,.0f}"
-)
+with col2:
 
-col4.metric(
-    "Savings Rate",
-    f"{savings_rate:.1f}%"
-)
+    st.metric(
+        "💸 Expenses",
+        money(total_expenses)
+    )
 
-col5.metric(
-    "Health Score",
-    f"{health_score}/100"
-)
+with col3:
 
-# -------------------------
-# CHARTS
-# -------------------------
+    st.metric(
+        "🏦 Balance",
+        money(balance)
+    )
+
+with col4:
+
+    st.metric(
+        "📈 Savings Rate",
+        f"{savings_rate:.1f}%"
+    )
+
+with col5:
+
+    st.metric(
+        "❤️ Health Score",
+        f"{health_score}/100"
+    )
+
+st.divider()
+
+# =====================================================
+# OVERVIEW CHARTS
+# =====================================================
+
+left_chart, right_chart = st.columns([2, 1])
+
+with left_chart:
+
+    st.subheader(
+        "📊 Income vs Expenses"
+    )
+
+    compare_df = pd.DataFrame(
+        {
+            "Category": [
+                "Income",
+                "Expenses"
+            ],
+            "Amount": [
+                total_income,
+                total_expenses
+            ]
+        }
+    )
+
+    fig = px.bar(
+        compare_df,
+        x="Category",
+        y="Amount",
+        color="Category",
+        color_discrete_map={
+            "Income": "#10B981",
+            "Expenses": "#EF4444"
+        }
+    )
+
+    fig.update_layout(
+        height=450,
+        showlegend=False
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+with right_chart:
+
+    st.subheader(
+        "💹 Financial Score"
+    )
+
+    fig = px.pie(
+        values=[
+            health_score,
+            100 - health_score
+        ],
+        names=[
+            "Health",
+            "Remaining"
+        ],
+        hole=0.75
+    )
+
+    fig.update_layout(
+        height=450
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
+# EXPENSE ANALYSIS
+# =====================================================
+
 if not expenses.empty:
 
-    chart1, chart2 = st.columns(2)
+    st.divider()
 
-    with chart1:
+    left, right = st.columns(2)
 
-        st.subheader("Expense Breakdown")
+    with left:
 
-        pie = px.pie(
-            expenses,
+        st.subheader(
+            "🥧 Expense Breakdown"
+        )
+
+        expense_categories = (
+            expenses
+            .groupby("category")["amount"]
+            .sum()
+            .reset_index()
+        )
+
+        fig = px.pie(
+            expense_categories,
             names="category",
             values="amount",
             hole=0.65
         )
 
-        pie.update_layout(
-            height=400
+        fig.update_layout(
+            height=450
         )
 
         st.plotly_chart(
-            pie,
+            fig,
             use_container_width=True
         )
 
-    with chart2:
+    with right:
 
-        expenses["date"] = pd.to_datetime(
-            expenses["date"]
+        st.subheader(
+            "📉 Spending Trend"
         )
 
-        expenses["month"] = (
-            expenses["date"]
+        chart_df = expenses.copy()
+
+        chart_df["date"] = pd.to_datetime(
+            chart_df["date"]
+        )
+
+        chart_df["month"] = (
+            chart_df["date"]
             .dt.strftime("%Y-%m")
         )
 
         monthly = (
-            expenses
+            chart_df
             .groupby("month")["amount"]
             .sum()
             .reset_index()
         )
 
-        trend = px.area(
+        fig = px.area(
             monthly,
             x="month",
-            y="amount"
+            y="amount",
+            color_discrete_sequence=[
+                "#2563EB"
+            ]
         )
 
-        trend.update_layout(
-            title="Monthly Spending Trend",
-            height=400
+        fig.update_layout(
+            height=450
         )
 
         st.plotly_chart(
-            trend,
+            fig,
             use_container_width=True
         )
 
-# -------------------------
+# =====================================================
 # AI FINANCIAL COACH
-# -------------------------
-st.subheader("AI Financial Coach")
+# =====================================================
 
-if savings_rate > 30:
+st.divider()
 
-    st.success(
-        "Excellent savings habits. Your financial health is strong."
+st.subheader(
+    "🤖 Financial Coach"
+)
+
+if savings_rate >= 30:
+
+    advice = """
+    Excellent work.
+
+    Your savings rate is strong and spending is under control.
+
+    Continue investing and growing your wealth.
+    """
+
+elif savings_rate >= 10:
+
+    advice = """
+    Good progress.
+
+    Look for opportunities to increase monthly savings
+    and reduce non-essential spending.
+    """
+
+else:
+
+    advice = """
+    Savings are currently low.
+
+    Focus on reducing discretionary spending
+    and increasing income sources.
+    """
+
+st.markdown(
+    f"""
+    <div style="
+    background:linear-gradient(
+        135deg,
+        #2563EB,
+        #8B5CF6
+    );
+    padding:25px;
+    border-radius:18px;
+    color:white;
+    ">
+        <h3 style="color:white;">
+        Financial Recommendation
+        </h3>
+
+        <p>
+        {advice}
+        </p>
+
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# =====================================================
+# RECENT EXPENSES
+# =====================================================
+
+st.divider()
+
+st.subheader(
+    "📋 Recent Expenses"
+)
+
+if not expenses.empty:
+
+    recent_expenses = expenses.copy()
+
+    recent_expenses["date"] = pd.to_datetime(
+        recent_expenses["date"]
     )
 
-elif savings_rate > 10:
+    recent_expenses = (
+        recent_expenses
+        .sort_values(
+            "date",
+            ascending=False
+        )
+        .head(20)
+    )
 
-    st.info(
-        "You are saving consistently. Look for additional savings opportunities."
+    st.dataframe(
+        recent_expenses,
+        use_container_width=True,
+        height=400
     )
 
 else:
 
-    st.warning(
-        "Savings are low. Consider reducing discretionary expenses."
+    st.info(
+        "No expenses available."
     )
 
-# -------------------------
-# CLOSE CONNECTION
-# -------------------------
+# =====================================================
+# CLOSE DATABASE
+# =====================================================
+
 conn.close()

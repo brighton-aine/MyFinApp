@@ -2,49 +2,52 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from utils import (
+    require_login,
+    load_css,
+    render_sidebar,
+    page_header,
+    money
+)
+
 from database.db import get_connection
 
-# -------------------------
-# SECURITY
-# -------------------------
-if "user" not in st.session_state:
-    st.session_state["user"] = None
+# =====================================================
+# APP SETUP
+# =====================================================
 
-if st.session_state["user"] is None:
-    st.warning(
-        "Please login first."
-    )
-    st.switch_page("app.py")
-    st.stop()
+load_css()
+require_login()
+render_sidebar()
 
-# -------------------------
-# PAGE TITLE
-# -------------------------
-st.title("📈 Financial Forecast")
-
-st.markdown("""
-Analyze spending trends and estimate future expenses
-based on historical data.
-""")
-
-# -------------------------
-# DATABASE
-# -------------------------
-conn = get_connection()
-
-expenses = pd.read_sql(
-    "SELECT * FROM expenses",
-    conn
+page_header(
+    "📈 Financial Forecast Center",
+    "Analyze trends and estimate future income, expenses and savings."
 )
+
+# =====================================================
+# DATABASE
+# =====================================================
+
+conn = get_connection()
 
 income = pd.read_sql(
     "SELECT * FROM income",
     conn
 )
 
-# -------------------------
+expenses = pd.read_sql(
+    "SELECT * FROM expenses",
+    conn
+)
+
+# =====================================================
 # EXPENSE FORECAST
-# -------------------------
+# =====================================================
+
+forecast_expense = 0
+average_expense = 0
+
 if not expenses.empty:
 
     expenses["date"] = pd.to_datetime(
@@ -56,59 +59,29 @@ if not expenses.empty:
         .dt.strftime("%Y-%m")
     )
 
-    monthly = (
+    monthly_expenses = (
         expenses
         .groupby("month")["amount"]
         .sum()
         .reset_index()
     )
 
-    average_expense = monthly[
-        "amount"
-    ].mean()
+    average_expense = (
+        monthly_expenses["amount"]
+        .mean()
+    )
 
     forecast_expense = (
         average_expense * 1.05
     )
 
-    st.subheader(
-        "Expense Forecast"
-    )
-
-    col1, col2 = st.columns(2)
-
-    col1.metric(
-        "Average Monthly Spending",
-        f"UGX {average_expense:,.0f}"
-    )
-
-    col2.metric(
-        "Forecast Next Month",
-        f"UGX {forecast_expense:,.0f}"
-    )
-
-    trend = px.line(
-        monthly,
-        x="month",
-        y="amount",
-        markers=True,
-        title="Monthly Expense Trend"
-    )
-
-    st.plotly_chart(
-        trend,
-        use_container_width=True
-    )
-
-else:
-
-    st.info(
-        "Add expense data first."
-    )
-
-# -------------------------
+# =====================================================
 # INCOME FORECAST
-# -------------------------
+# =====================================================
+
+forecast_income = 0
+average_income = 0
+
 if not income.empty:
 
     income["date"] = pd.to_datetime(
@@ -127,75 +100,360 @@ if not income.empty:
         .reset_index()
     )
 
-    avg_income = monthly_income[
-        "amount"
-    ].mean()
+    average_income = (
+        monthly_income["amount"]
+        .mean()
+    )
 
     forecast_income = (
-        avg_income * 1.03
+        average_income * 1.03
     )
+
+# =====================================================
+# KPI SECTION
+# =====================================================
+
+st.divider()
+
+c1, c2, c3, c4 = st.columns(4)
+
+with c1:
+
+    st.metric(
+        "📉 Avg Expense",
+        money(average_expense)
+    )
+
+with c2:
+
+    st.metric(
+        "📈 Avg Income",
+        money(average_income)
+    )
+
+with c3:
+
+    st.metric(
+        "🔮 Forecast Income",
+        money(forecast_income)
+    )
+
+with c4:
+
+    st.metric(
+        "🔮 Forecast Expense",
+        money(forecast_expense)
+    )
+
+# =====================================================
+# INCOME FORECAST CHART
+# =====================================================
+
+if not income.empty:
+
+    st.divider()
 
     st.subheader(
-        "Income Forecast"
+        "📈 Income Forecast Trend"
     )
 
-    col3, col4 = st.columns(2)
+    forecast_df = monthly_income.copy()
 
-    col3.metric(
-        "Average Monthly Income",
-        f"UGX {avg_income:,.0f}"
+    next_month = pd.Timestamp.today()
+
+    future_income = pd.DataFrame(
+        {
+            "month": [
+                next_month.strftime(
+                    "%Y-%m"
+                )
+            ],
+            "amount": [
+                forecast_income
+            ]
+        }
     )
 
-    col4.metric(
-        "Forecast Next Month",
-        f"UGX {forecast_income:,.0f}"
+    forecast_df = pd.concat(
+        [
+            forecast_df,
+            future_income
+        ],
+        ignore_index=True
     )
 
-    income_chart = px.line(
-        monthly_income,
+    fig = px.line(
+        forecast_df,
         x="month",
         y="amount",
-        markers=True,
-        title="Monthly Income Trend"
+        markers=True
+    )
+
+    fig.update_traces(
+        line=dict(
+            width=4,
+            color="#10B981"
+        )
+    )
+
+    fig.update_layout(
+        height=450
     )
 
     st.plotly_chart(
-        income_chart,
+        fig,
         use_container_width=True
     )
 
-# -------------------------
-# FINANCIAL OUTLOOK
-# -------------------------
-if not income.empty and not expenses.empty:
+# =====================================================
+# EXPENSE FORECAST CHART
+# =====================================================
 
-    projected_savings = (
-        forecast_income -
-        forecast_expense
-    )
+if not expenses.empty:
 
     st.subheader(
-        "Financial Outlook"
+        "📉 Expense Forecast Trend"
     )
+
+    forecast_exp_df = (
+        monthly_expenses.copy()
+    )
+
+    next_month = pd.Timestamp.today()
+
+    future_expense = pd.DataFrame(
+        {
+            "month": [
+                next_month.strftime(
+                    "%Y-%m"
+                )
+            ],
+            "amount": [
+                forecast_expense
+            ]
+        }
+    )
+
+    forecast_exp_df = pd.concat(
+        [
+            forecast_exp_df,
+            future_expense
+        ],
+        ignore_index=True
+    )
+
+    fig = px.area(
+        forecast_exp_df,
+        x="month",
+        y="amount",
+        color_discrete_sequence=[
+            "#EF4444"
+        ]
+    )
+
+    fig.update_layout(
+        height=450
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
+# PROJECTED SAVINGS
+# =====================================================
+
+projected_savings = (
+    forecast_income -
+    forecast_expense
+)
+
+st.divider()
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
 
     st.metric(
-        "Projected Monthly Savings",
-        f"UGX {projected_savings:,.0f}"
+        "💰 Projected Savings",
+        money(projected_savings)
     )
 
-    if projected_savings > 0:
+with c2:
 
-        st.success(
-            "Your forecast indicates positive savings."
-        )
+    st.metric(
+        "Forecast Income",
+        money(forecast_income)
+    )
 
-    else:
+with c3:
 
-        st.warning(
-            "Your forecast indicates a potential deficit."
-        )
+    st.metric(
+        "Forecast Expenses",
+        money(forecast_expense)
+    )
 
-# -------------------------
-# CLOSE CONNECTION
-# -------------------------
+# =====================================================
+# OUTLOOK CARD
+# =====================================================
+
+st.divider()
+
+if projected_savings > 0:
+
+    card_color = """
+    linear-gradient(
+        135deg,
+        #10B981,
+        #059669
+    )
+    """
+
+    message = """
+    ✅ Forecast indicates positive savings next month.
+
+    Your current financial trend appears healthy and sustainable.
+    """
+
+else:
+
+    card_color = """
+    linear-gradient(
+        135deg,
+        #EF4444,
+        #DC2626
+    )
+    """
+
+    message = """
+    ⚠ Forecast indicates a potential deficit.
+
+    Consider reducing expenses or increasing income.
+    """
+
+st.markdown(
+    f"""
+    <div style="
+    background:{card_color};
+    padding:25px;
+    border-radius:18px;
+    color:white;
+    ">
+        <h3 style="color:white;">
+        Financial Outlook
+        </h3>
+
+        <p>
+        {message}
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# =====================================================
+# FORECAST COMPARISON
+# =====================================================
+
+if (
+    forecast_income > 0
+    or
+    forecast_expense > 0
+):
+
+    st.divider()
+
+    st.subheader(
+        "💹 Forecast Comparison"
+    )
+
+    comparison = pd.DataFrame(
+        {
+            "Category": [
+                "Forecast Income",
+                "Forecast Expense",
+                "Projected Savings"
+            ],
+            "Amount": [
+                forecast_income,
+                forecast_expense,
+                projected_savings
+            ]
+        }
+    )
+
+    fig = px.bar(
+        comparison,
+        x="Category",
+        y="Amount",
+        color="Category",
+        color_discrete_map={
+            "Forecast Income": "#10B981",
+            "Forecast Expense": "#EF4444",
+            "Projected Savings": "#2563EB"
+        }
+    )
+
+    fig.update_layout(
+        height=450
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+# =====================================================
+# FORECAST ADVISOR
+# =====================================================
+
+st.divider()
+
+st.markdown(
+    f"""
+    <div style="
+    background:linear-gradient(
+        135deg,
+        #2563EB,
+        #7C3AED
+    );
+    padding:25px;
+    border-radius:18px;
+    color:white;
+    ">
+
+        <h3 style="color:white;">
+        🤖 Forecast Advisor
+        </h3>
+
+        <p>
+        Average Monthly Income:
+        <strong>{money(average_income)}</strong>
+
+        <br><br>
+
+        Average Monthly Expenses:
+        <strong>{money(average_expense)}</strong>
+
+        <br><br>
+
+        Projected Monthly Savings:
+        <strong>{money(projected_savings)}</strong>
+
+        <br><br>
+
+        Use these projections to plan budgets,
+        savings goals and future investments.
+        </p>
+
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# =====================================================
+# CLOSE DATABASE
+# =====================================================
+
 conn.close()
