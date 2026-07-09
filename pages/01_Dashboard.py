@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from utils import (
     require_login,
@@ -22,7 +23,7 @@ render_sidebar()
 
 page_header(
     "💰 Financial Health Dashboard",
-    "Monitor income, expenses, savings and financial health."
+    "Monitor income, expenses, budget performance and financial health."
 )
 
 # =====================================================
@@ -41,6 +42,15 @@ expenses = pd.read_sql(
     conn
 )
 
+# Budget table is optional — fall back gracefully if it doesn't exist yet.
+try:
+    budget = pd.read_sql(
+        "SELECT * FROM budget",
+        conn
+    )
+except Exception:
+    budget = pd.DataFrame(columns=["category", "amount"])
+
 # =====================================================
 # SAFETY
 # =====================================================
@@ -51,8 +61,17 @@ if "amount" not in income.columns:
 if "amount" not in expenses.columns:
     expenses["amount"] = 0
 
+if "category" not in expenses.columns:
+    expenses["category"] = "Uncategorized"
+
+if "amount" not in budget.columns:
+    budget["amount"] = 0
+
+if "category" not in budget.columns:
+    budget["category"] = pd.Series(dtype="object")
+
 # =====================================================
-# CALCULATIONS
+# CALCULATIONS — INCOME / EXPENSES
 # =====================================================
 
 total_income = (
@@ -102,10 +121,71 @@ else:
     health_score = 100
 
 # =====================================================
+# CALCULATIONS — BUDGET
+# =====================================================
+
+has_budget = not budget.empty and budget["amount"].sum() > 0
+
+total_budget = (
+    budget["amount"].sum()
+    if has_budget
+    else 0
+)
+
+budget_variance = total_budget - total_expenses  # positive = under budget
+
+budget_utilization = (
+    (total_expenses / total_budget) * 100
+    if total_budget > 0
+    else 0
+)
+
+# Per-category budget vs actual
+if has_budget and not expenses.empty:
+
+    actual_by_category = (
+        expenses
+        .groupby("category")["amount"]
+        .sum()
+        .reset_index()
+        .rename(columns={"amount": "Actual"})
+    )
+
+    budget_by_category = (
+        budget
+        .groupby("category")["amount"]
+        .sum()
+        .reset_index()
+        .rename(columns={"amount": "Budget"})
+    )
+
+    budget_vs_actual = pd.merge(
+        budget_by_category,
+        actual_by_category,
+        on="category",
+        how="outer"
+    ).fillna(0)
+
+    budget_vs_actual["Variance"] = (
+        budget_vs_actual["Budget"] -
+        budget_vs_actual["Actual"]
+    )
+
+    budget_vs_actual["Status"] = budget_vs_actual["Variance"].apply(
+        lambda v: "Over Budget" if v < 0 else "Under Budget"
+    )
+
+else:
+
+    budget_vs_actual = pd.DataFrame(
+        columns=["category", "Budget", "Actual", "Variance", "Status"]
+    )
+
+# =====================================================
 # KPI CARDS
 # =====================================================
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 
 with col1:
 
@@ -137,6 +217,23 @@ with col4:
 
 with col5:
 
+    if has_budget:
+
+        st.metric(
+            "🎯 Budget Left",
+            money(budget_variance),
+            delta=f"{budget_utilization:.0f}% used"
+        )
+
+    else:
+
+        st.metric(
+            "🎯 Budget Left",
+            "No budget set"
+        )
+
+with col6:
+
     st.metric(
         "❤️ Health Score",
         f"{health_score}/100"
@@ -145,7 +242,7 @@ with col5:
 st.divider()
 
 # =====================================================
-# OVERVIEW CHARTS
+# OVERVIEW CHARTS — INCOME VS EXPENSES
 # =====================================================
 
 left_chart, right_chart = st.columns([2, 1])
@@ -174,10 +271,16 @@ with left_chart:
         x="Category",
         y="Amount",
         color="Category",
+        text="Amount",
         color_discrete_map={
             "Income": "#10B981",
             "Expenses": "#EF4444"
         }
+    )
+
+    fig.update_traces(
+        texttemplate="%{text:,.0f}",
+        textposition="outside"
     )
 
     fig.update_layout(
@@ -205,11 +308,13 @@ with right_chart:
             "Health",
             "Remaining"
         ],
-        hole=0.75
+        hole=0.75,
+        color_discrete_sequence=["#2563EB", "#E5E7EB"]
     )
 
     fig.update_layout(
-        height=450
+        height=450,
+        showlegend=False
     )
 
     st.plotly_chart(
@@ -217,13 +322,115 @@ with right_chart:
         use_container_width=True
     )
 
+st.divider()
+
+# =====================================================
+# BUDGET VS EXPENDITURE
+# =====================================================
+
+st.subheader(
+    "🎯 Budget vs Expenditure"
+)
+
+if has_budget:
+
+    budget_left, budget_right = st.columns([2, 1])
+
+    with budget_left:
+
+        st.markdown("**By Category**")
+
+        fig = px.bar(
+            budget_vs_actual.sort_values("Budget", ascending=False),
+            x="category",
+            y=["Budget", "Actual"],
+            barmode="group",
+            color_discrete_map={
+                "Budget": "#8B5CF6",
+                "Actual": "#F59E0B"
+            }
+        )
+
+        fig.update_layout(
+            height=420,
+            xaxis_title="",
+            yaxis_title="Amount",
+            legend_title=""
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    with budget_right:
+
+        st.markdown("**Overall Utilization**")
+
+        gauge_color = (
+            "#EF4444" if budget_utilization > 100
+            else "#F59E0B" if budget_utilization > 80
+            else "#10B981"
+        )
+
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+                value=budget_utilization,
+                number={"suffix": "%"},
+                gauge={
+                    "axis": {"range": [0, max(120, budget_utilization + 10)]},
+                    "bar": {"color": gauge_color},
+                    "steps": [
+                        {"range": [0, 80], "color": "#D1FAE5"},
+                        {"range": [80, 100], "color": "#FEF3C7"},
+                        {"range": [100, max(120, budget_utilization + 10)], "color": "#FEE2E2"}
+                    ],
+                    "threshold": {
+                        "line": {"color": "black", "width": 3},
+                        "thickness": 0.8,
+                        "value": 100
+                    }
+                }
+            )
+        )
+
+        fig.update_layout(height=420)
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # Highlight categories over budget
+    over_budget = budget_vs_actual[budget_vs_actual["Status"] == "Over Budget"]
+
+    if not over_budget.empty:
+
+        st.markdown("**⚠️ Categories Over Budget**")
+
+        st.dataframe(
+            over_budget[["category", "Budget", "Actual", "Variance"]]
+            .sort_values("Variance"),
+            use_container_width=True,
+            hide_index=True
+        )
+
+else:
+
+    st.info(
+        "No budget data found. Add entries to a `budget` table "
+        "(columns: `category`, `amount`) to unlock budget tracking, "
+        "utilization, and over/under-budget alerts."
+    )
+
+st.divider()
+
 # =====================================================
 # EXPENSE ANALYSIS
 # =====================================================
 
 if not expenses.empty:
-
-    st.divider()
 
     left, right = st.columns(2)
 
@@ -298,42 +505,60 @@ if not expenses.empty:
             use_container_width=True
         )
 
+    st.divider()
+
 # =====================================================
 # AI FINANCIAL COACH
 # =====================================================
-
-st.divider()
 
 st.subheader(
     "🤖 Financial Coach"
 )
 
+budget_note = ""
+
+if has_budget:
+
+    if budget_utilization > 100:
+
+        budget_note = (
+            "\n\n    You're currently over your total budget — "
+            "review the categories flagged above first."
+        )
+
+    elif budget_utilization > 80:
+
+        budget_note = (
+            "\n\n    You're close to your budget limit this period — "
+            "keep an eye on discretionary categories."
+        )
+
 if savings_rate >= 30:
 
-    advice = """
+    advice = f"""
     Excellent work.
 
     Your savings rate is strong and spending is under control.
 
-    Continue investing and growing your wealth.
+    Continue investing and growing your wealth.{budget_note}
     """
 
 elif savings_rate >= 10:
 
-    advice = """
+    advice = f"""
     Good progress.
 
     Look for opportunities to increase monthly savings
-    and reduce non-essential spending.
+    and reduce non-essential spending.{budget_note}
     """
 
 else:
 
-    advice = """
+    advice = f"""
     Savings are currently low.
 
     Focus on reducing discretionary spending
-    and increasing income sources.
+    and increasing income sources.{budget_note}
     """
 
 st.markdown(

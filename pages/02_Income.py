@@ -56,7 +56,7 @@ with st.expander(
     expanded=True
 ):
 
-    with st.form("income_form"):
+    with st.form("income_form", clear_on_submit=True):
 
         col1, col2 = st.columns(2)
 
@@ -85,48 +85,57 @@ with st.expander(
             )
 
         submit = st.form_submit_button(
-            "💾 Save Income"
+            "💾 Save Income",
+            use_container_width=True
         )
 
 if submit:
 
-    try:
-
-        cursor.execute(
-            """
-            INSERT INTO income
-            (
-                date,
-                category,
-                description,
-                amount
-            )
-            VALUES
-            (
-                ?, ?, ?, ?
-            )
-            """,
-            (
-                str(income_date),
-                category,
-                description,
-                amount
-            )
-        )
-
-        conn.commit()
-
-        st.success(
-            "Income saved successfully."
-        )
-
-        st.rerun()
-
-    except Exception as e:
+    if amount <= 0:
 
         st.error(
-            f"Error: {e}"
+            "Amount must be greater than zero."
         )
+
+    else:
+
+        try:
+
+            cursor.execute(
+                """
+                INSERT INTO income
+                (
+                    date,
+                    category,
+                    description,
+                    amount
+                )
+                VALUES
+                (
+                    ?, ?, ?, ?
+                )
+                """,
+                (
+                    str(income_date),
+                    category,
+                    description.strip(),
+                    amount
+                )
+            )
+
+            conn.commit()
+
+            st.success(
+                "Income saved successfully."
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                f"Error: {e}"
+            )
 
 # =====================================================
 # LOAD INCOME
@@ -140,6 +149,12 @@ income_df = pd.read_sql(
     """,
     conn
 )
+
+if not income_df.empty:
+
+    income_df["date"] = pd.to_datetime(
+        income_df["date"]
+    )
 
 # =====================================================
 # KPI CARDS
@@ -166,16 +181,70 @@ if not income_df.empty:
         income_df
     )
 
+    today = pd.Timestamp(
+        date.today()
+    )
+
+    current_month_df = income_df[
+        (income_df["date"].dt.month == today.month) &
+        (income_df["date"].dt.year == today.year)
+    ]
+
+    this_month_income = (
+        current_month_df["amount"].sum()
+        if not current_month_df.empty
+        else 0
+    )
+
+    last_month = (
+        today.month - 1
+        if today.month > 1
+        else 12
+    )
+
+    last_month_year = (
+        today.year
+        if today.month > 1
+        else today.year - 1
+    )
+
+    last_month_df = income_df[
+        (income_df["date"].dt.month == last_month) &
+        (income_df["date"].dt.year == last_month_year)
+    ]
+
+    last_month_income = (
+        last_month_df["amount"].sum()
+        if not last_month_df.empty
+        else 0
+    )
+
+    month_over_month = (
+        ((this_month_income - last_month_income) / last_month_income) * 100
+        if last_month_income > 0
+        else None
+    )
+
+    top_category = (
+        income_df
+        .groupby("category")["amount"]
+        .sum()
+        .idxmax()
+    )
+
 else:
 
     total_income = 0
     average_income = 0
     highest_income = 0
     records = 0
+    this_month_income = 0
+    month_over_month = None
+    top_category = "—"
 
 st.divider()
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 
 with c1:
 
@@ -187,8 +256,13 @@ with c1:
 with c2:
 
     st.metric(
-        "📄 Records",
-        records
+        "📅 This Month",
+        money(this_month_income),
+        delta=(
+            f"{month_over_month:+.1f}% vs last month"
+            if month_over_month is not None
+            else None
+        )
     )
 
 with c3:
@@ -203,6 +277,13 @@ with c4:
     st.metric(
         "🏆 Highest",
         money(highest_income)
+    )
+
+with c5:
+
+    st.metric(
+        "⭐ Top Category",
+        top_category
     )
 
 # =====================================================
@@ -226,14 +307,18 @@ if not income_df.empty:
             .groupby("category")["amount"]
             .sum()
             .reset_index()
+            .sort_values("amount", ascending=False)
         )
 
         fig = px.pie(
             chart_df,
             names="category",
             values="amount",
-            hole=0.65
+            hole=0.65,
+            color_discrete_sequence=px.colors.sequential.Greens_r
         )
+
+        fig.update_layout(height=420)
 
         st.plotly_chart(
             fig,
@@ -243,34 +328,41 @@ if not income_df.empty:
     with right:
 
         st.subheader(
-            "Income Trend"
+            "Monthly Income Trend"
         )
 
         trend_df = income_df.copy()
 
-        trend_df["date"] = pd.to_datetime(
+        trend_df["month"] = (
             trend_df["date"]
+            .dt.strftime("%Y-%m")
         )
 
         trend = (
             trend_df
-            .groupby("date")["amount"]
+            .groupby("month")["amount"]
             .sum()
             .reset_index()
+            .sort_values("month")
         )
 
-        fig = px.line(
+        fig = px.bar(
             trend,
-            x="date",
+            x="month",
             y="amount",
-            markers=True
+            text="amount"
         )
 
         fig.update_traces(
-            line=dict(
-                width=4,
-                color="#10B981"
-            )
+            marker_color="#10B981",
+            texttemplate="%{text:,.0f}",
+            textposition="outside"
+        )
+
+        fig.update_layout(
+            height=420,
+            xaxis_title="",
+            yaxis_title="Amount"
         )
 
         st.plotly_chart(
@@ -341,7 +433,8 @@ if not income_df.empty:
 
             update_btn = (
                 st.form_submit_button(
-                    "💾 Update"
+                    "💾 Update",
+                    use_container_width=True
                 )
             )
 
@@ -349,7 +442,8 @@ if not income_df.empty:
 
             delete_btn = (
                 st.form_submit_button(
-                    "🗑 Delete"
+                    "🗑 Delete",
+                    use_container_width=True
                 )
             )
 
@@ -357,40 +451,48 @@ if not income_df.empty:
 
     if update_btn:
 
-        try:
-
-            cursor.execute(
-                """
-                UPDATE income
-                SET
-                    date=?,
-                    category=?,
-                    description=?,
-                    amount=?
-                WHERE id=?
-                """,
-                (
-                    str(edit_date),
-                    edit_category,
-                    edit_description,
-                    edit_amount,
-                    int(selected_id)
-                )
-            )
-
-            conn.commit()
-
-            st.success(
-                "Income updated."
-            )
-
-            st.rerun()
-
-        except Exception as e:
+        if edit_amount <= 0:
 
             st.error(
-                f"Error: {e}"
+                "Amount must be greater than zero."
             )
+
+        else:
+
+            try:
+
+                cursor.execute(
+                    """
+                    UPDATE income
+                    SET
+                        date=?,
+                        category=?,
+                        description=?,
+                        amount=?
+                    WHERE id=?
+                    """,
+                    (
+                        str(edit_date),
+                        edit_category,
+                        edit_description.strip(),
+                        edit_amount,
+                        int(selected_id)
+                    )
+                )
+
+                conn.commit()
+
+                st.success(
+                    "Income updated."
+                )
+
+                st.rerun()
+
+            except Exception as e:
+
+                st.error(
+                    f"Error: {e}"
+                )
 
     # DELETE
 
@@ -422,8 +524,14 @@ if not income_df.empty:
                 f"Error: {e}"
             )
 
+else:
+
+    st.info(
+        "No income records to edit yet."
+    )
+
 # =====================================================
-# RECORDS TABLE
+# FILTERS
 # =====================================================
 
 st.divider()
@@ -434,7 +542,67 @@ st.subheader(
 
 if not income_df.empty:
 
-    display_df = income_df.copy()
+    f1, f2, f3 = st.columns([1, 1, 2])
+
+    with f1:
+
+        min_date = income_df["date"].min().date()
+        max_date = income_df["date"].max().date()
+
+        date_range = st.date_input(
+            "Date range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date
+        )
+
+    with f2:
+
+        category_filter = st.multiselect(
+            "Category",
+            options=sorted(income_df["category"].unique()),
+            default=[]
+        )
+
+    with f3:
+
+        search_term = st.text_input(
+            "Search description",
+            placeholder="e.g. client name, invoice #..."
+        )
+
+    filtered_df = income_df.copy()
+
+    if isinstance(date_range, tuple) and len(date_range) == 2:
+
+        start_date, end_date = date_range
+
+        filtered_df = filtered_df[
+            (filtered_df["date"].dt.date >= start_date) &
+            (filtered_df["date"].dt.date <= end_date)
+        ]
+
+    if category_filter:
+
+        filtered_df = filtered_df[
+            filtered_df["category"].isin(category_filter)
+        ]
+
+    if search_term:
+
+        filtered_df = filtered_df[
+            filtered_df["description"]
+            .str.contains(search_term, case=False, na=False)
+        ]
+
+    st.caption(
+        f"Showing {len(filtered_df)} of {len(income_df)} records "
+        f"— total {money(filtered_df['amount'].sum())}"
+    )
+
+    display_df = filtered_df.copy()
+
+    display_df["date"] = display_df["date"].dt.strftime("%Y-%m-%d")
 
     display_df["amount"] = (
         display_df["amount"]
@@ -444,30 +612,30 @@ if not income_df.empty:
     st.dataframe(
         display_df,
         use_container_width=True,
-        height=500
+        height=500,
+        hide_index=True
+    )
+
+    # =====================================================
+    # EXPORT
+    # =====================================================
+
+    csv_data = filtered_df.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        "📥 Export Filtered Income",
+        csv_data,
+        file_name="income.csv",
+        mime="text/csv",
+        use_container_width=True
     )
 
 else:
 
     st.info(
         "No income records available."
-    )
-
-# =====================================================
-# EXPORT
-# =====================================================
-
-if not income_df.empty:
-
-    csv_data = income_df.to_csv(
-        index=False
-    ).encode("utf-8")
-
-    st.download_button(
-        "📥 Export Income",
-        csv_data,
-        file_name="income.csv",
-        mime="text/csv"
     )
 
 # =====================================================
