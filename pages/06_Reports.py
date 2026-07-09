@@ -5,14 +5,22 @@ import plotly.express as px
 from io import BytesIO
 from datetime import date
 
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
-    Spacer
+    Spacer,
+    Table,
+    TableStyle
 )
 
 from reportlab.lib.styles import (
-    getSampleStyleSheet
+    getSampleStyleSheet,
+    ParagraphStyle
 )
 
 from utils import (
@@ -75,6 +83,14 @@ with col2:
         value=date.today()
     )
 
+if start_date > end_date:
+
+    st.error(
+        "Start date must be before end date."
+    )
+
+    st.stop()
+
 # =====================================================
 # LOAD DATA
 # =====================================================
@@ -120,6 +136,12 @@ goals = pd.read_sql(
     """,
     conn
 )
+
+if not income.empty:
+    income["date"] = pd.to_datetime(income["date"])
+
+if not expenses.empty:
+    expenses["date"] = pd.to_datetime(expenses["date"])
 
 # =====================================================
 # CALCULATIONS
@@ -168,6 +190,13 @@ if total_income > 0:
     else:
 
         health_score = 90
+
+if income.empty and expenses.empty:
+
+    st.info(
+        "No income or expense records found for this period. "
+        "KPIs and charts below will be empty until data is added."
+    )
 
 # =====================================================
 # KPI CARDS
@@ -240,10 +269,16 @@ with left:
         x="Category",
         y="Amount",
         color="Category",
+        text="Amount",
         color_discrete_map={
             "Income": "#10B981",
             "Expenses": "#EF4444"
         }
+    )
+
+    fig.update_traces(
+        texttemplate="%{text:,.0f}",
+        textposition="outside"
     )
 
     fig.update_layout(
@@ -268,11 +303,13 @@ with right:
             "Health",
             "Remaining"
         ],
-        hole=0.75
+        hole=0.75,
+        color_discrete_sequence=["#2563EB", "#E5E7EB"]
     )
 
     fig.update_layout(
         height=450,
+        showlegend=False,
         title="Financial Health"
     )
 
@@ -298,13 +335,15 @@ if not expenses.empty:
         .groupby("category")["amount"]
         .sum()
         .reset_index()
+        .sort_values("amount", ascending=False)
     )
 
     fig = px.pie(
         expense_chart,
         names="category",
         values="amount",
-        hole=0.65
+        hole=0.65,
+        color_discrete_sequence=px.colors.sequential.Reds_r
     )
 
     fig.update_layout(
@@ -324,10 +363,6 @@ if not expenses.empty:
 
     st.divider()
 
-    expenses["date"] = pd.to_datetime(
-        expenses["date"]
-    )
-
     monthly_expenses = (
         expenses
         .groupby(
@@ -336,12 +371,15 @@ if not expenses.empty:
         )["amount"]
         .sum()
         .reset_index()
+        .rename(columns={"date": "month"})
+        .sort_values("month")
     )
 
     fig = px.area(
         monthly_expenses,
-        x="date",
+        x="month",
         y="amount",
+        markers=True,
         color_discrete_sequence=[
             "#2563EB"
         ]
@@ -349,7 +387,9 @@ if not expenses.empty:
 
     fig.update_layout(
         height=450,
-        title="Monthly Spending Trend"
+        title="Monthly Spending Trend",
+        xaxis_title="",
+        yaxis_title="Amount"
     )
 
     st.plotly_chart(
@@ -360,6 +400,9 @@ if not expenses.empty:
 # =====================================================
 # INCOME SUMMARY
 # =====================================================
+
+income_summary = pd.DataFrame()
+expense_summary = pd.DataFrame()
 
 if not income.empty:
 
@@ -374,17 +417,21 @@ if not income.empty:
         .groupby("category")["amount"]
         .sum()
         .reset_index()
+        .sort_values("amount", ascending=False)
     )
 
-    income_summary["amount"] = (
-        income_summary["amount"]
+    display_income = income_summary.copy()
+
+    display_income["amount"] = (
+        display_income["amount"]
         .apply(money)
     )
 
     st.dataframe(
-        income_summary,
+        display_income,
         use_container_width=True,
-        height=350
+        height=350,
+        hide_index=True
     )
 
 # =====================================================
@@ -402,17 +449,21 @@ if not expenses.empty:
         .groupby("category")["amount"]
         .sum()
         .reset_index()
+        .sort_values("amount", ascending=False)
     )
 
-    expense_summary["amount"] = (
-        expense_summary["amount"]
+    display_expense = expense_summary.copy()
+
+    display_expense["amount"] = (
+        display_expense["amount"]
         .apply(money)
     )
 
     st.dataframe(
-        expense_summary,
+        display_expense,
         use_container_width=True,
-        height=350
+        height=350,
+        hide_index=True
     )
 
 # =====================================================
@@ -429,7 +480,8 @@ if not goals.empty:
 
     st.dataframe(
         goals,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
 # =====================================================
@@ -446,7 +498,8 @@ if not budgets.empty:
 
     st.dataframe(
         budgets,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
 # =====================================================
@@ -543,68 +596,314 @@ with pd.ExcelWriter(
 st.download_button(
     "📊 Download Excel Report",
     excel_buffer.getvalue(),
-    file_name="MyFinApp_Report.xlsx"
+    file_name="MyFinApp_Report.xlsx",
+    use_container_width=True
 )
 
 # =====================================================
-# PDF EXPORT
+# PDF EXPORT — STYLED, TABLE-BASED REPORT
 # =====================================================
+
+BRAND_BLUE = colors.HexColor("#1D4ED8")
+BRAND_PURPLE = colors.HexColor("#7C3AED")
+BRAND_GREEN = colors.HexColor("#10B981")
+BRAND_RED = colors.HexColor("#EF4444")
+BRAND_ORANGE = colors.HexColor("#F59E0B")
+BRAND_GRAY = colors.HexColor("#F9FAFB")
+BRAND_BORDER = colors.HexColor("#E5E7EB")
+BRAND_TEXT_DARK = colors.HexColor("#111827")
+
+base_styles = getSampleStyleSheet()
+
+title_style = ParagraphStyle(
+    "ReportTitle",
+    parent=base_styles["Title"],
+    textColor=colors.white,
+    alignment=TA_CENTER,
+    fontSize=24,
+    leading=28,
+    spaceAfter=6
+)
+
+subtitle_style = ParagraphStyle(
+    "ReportSubtitle",
+    parent=base_styles["Normal"],
+    textColor=colors.HexColor("#DBEAFE"),
+    alignment=TA_CENTER,
+    fontSize=10,
+    leading=14
+)
+
+section_style = ParagraphStyle(
+    "SectionHeading",
+    parent=base_styles["Heading2"],
+    textColor=BRAND_TEXT_DARK,
+    fontSize=14,
+    spaceBefore=18,
+    spaceAfter=8
+)
+
+cell_style = ParagraphStyle(
+    "TableCell",
+    parent=base_styles["Normal"],
+    fontSize=9,
+    leading=12,
+    textColor=BRAND_TEXT_DARK
+)
+
+header_cell_style = ParagraphStyle(
+    "TableHeaderCell",
+    parent=base_styles["Normal"],
+    fontSize=9,
+    leading=12,
+    textColor=colors.white,
+    fontName="Helvetica-Bold"
+)
+
+
+def styled_table(df: pd.DataFrame, header_color, col_widths=None):
+    """Build a reportlab Table from a DataFrame with a colored header
+    row, alternating row shading, and wrapped text cells."""
+
+    display_df = df.copy()
+
+    for col in display_df.columns:
+
+        if str(col).lower() == "amount":
+
+            display_df[col] = display_df[col].apply(
+                lambda v: money(v) if pd.notna(v) else ""
+            )
+
+        else:
+
+            display_df[col] = display_df[col].apply(
+                lambda v: "" if pd.isna(v) else str(v)
+            )
+
+    header_row = [
+        Paragraph(str(c).replace("_", " ").title(), header_cell_style)
+        for c in display_df.columns
+    ]
+
+    data_rows = [
+        [Paragraph(val, cell_style) for val in row]
+        for row in display_df.values.tolist()
+    ]
+
+    table_data = [header_row] + data_rows
+
+    table = Table(
+        table_data,
+        colWidths=col_widths,
+        repeatRows=1
+    )
+
+    style_commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), header_color),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.5, BRAND_BORDER),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]
+
+    for i in range(1, len(table_data)):
+
+        if i % 2 == 0:
+
+            style_commands.append(
+                ("BACKGROUND", (0, i), (-1, i), BRAND_GRAY)
+            )
+
+    table.setStyle(TableStyle(style_commands))
+
+    return table
+
 
 pdf_buffer = BytesIO()
 
 doc = SimpleDocTemplate(
-    pdf_buffer
+    pdf_buffer,
+    pagesize=letter,
+    topMargin=0.5 * inch,
+    bottomMargin=0.6 * inch,
+    leftMargin=0.6 * inch,
+    rightMargin=0.6 * inch
 )
 
-styles = getSampleStyleSheet()
+content_width = (
+    letter[0] - doc.leftMargin - doc.rightMargin
+)
 
 story = []
 
-story.append(
+# ---------- Colored header banner ----------
+
+header_cell_content = [
+    Paragraph("MyFinApp Financial Report", title_style),
     Paragraph(
-        "MyFinApp Financial Report",
-        styles["Title"]
+        f"Report Period: {start_date.strftime('%d %b %Y')} "
+        f"&ndash; {end_date.strftime('%d %b %Y')}",
+        subtitle_style
+    ),
+    Paragraph(
+        f"Generated on {date.today().strftime('%d %b %Y')}",
+        subtitle_style
+    )
+]
+
+header_banner = Table(
+    [[header_cell_content]],
+    colWidths=[content_width]
+)
+
+header_banner.setStyle(
+    TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BRAND_BLUE),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 22),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 22),
+    ])
+)
+
+story.append(header_banner)
+
+# Thin accent stripe under the banner for a polished, branded feel
+accent_stripe = Table(
+    [["", "", ""]],
+    colWidths=[content_width / 3] * 3,
+    rowHeights=[6]
+)
+
+accent_stripe.setStyle(
+    TableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), BRAND_GREEN),
+        ("BACKGROUND", (1, 0), (1, 0), BRAND_ORANGE),
+        ("BACKGROUND", (2, 0), (2, 0), BRAND_RED),
+    ])
+)
+
+story.append(accent_stripe)
+
+story.append(Spacer(1, 20))
+
+# ---------- Summary KPI table ----------
+
+story.append(Paragraph("Summary", section_style))
+
+summary_df = pd.DataFrame({
+    "Metric": [
+        "Total Income",
+        "Total Expenses",
+        "Balance",
+        "Savings Rate",
+        "Health Score"
+    ],
+    "Value": [
+        money(total_income),
+        money(total_expenses),
+        money(balance),
+        f"{savings_rate:.1f}%",
+        f"{health_score}/100"
+    ]
+})
+
+story.append(
+    styled_table(
+        summary_df,
+        BRAND_BLUE,
+        col_widths=[content_width * 0.5, content_width * 0.5]
     )
 )
 
-story.append(
-    Spacer(1, 12)
+# ---------- Income by category ----------
+
+if not income_summary.empty:
+
+    story.append(Paragraph("Income by Category", section_style))
+
+    story.append(
+        styled_table(
+            income_summary.rename(
+                columns={"category": "Category", "amount": "Amount"}
+            ),
+            BRAND_GREEN,
+            col_widths=[content_width * 0.6, content_width * 0.4]
+        )
+    )
+
+# ---------- Expenses by category ----------
+
+if not expense_summary.empty:
+
+    story.append(Paragraph("Expenses by Category", section_style))
+
+    story.append(
+        styled_table(
+            expense_summary.rename(
+                columns={"category": "Category", "amount": "Amount"}
+            ),
+            BRAND_RED,
+            col_widths=[content_width * 0.6, content_width * 0.4]
+        )
+    )
+
+# ---------- Budget report ----------
+
+if not budgets.empty:
+
+    story.append(Paragraph("Budget Report", section_style))
+
+    story.append(
+        styled_table(budgets, BRAND_PURPLE)
+    )
+
+# ---------- Goals report ----------
+
+if not goals.empty:
+
+    story.append(Paragraph("Goals Report", section_style))
+
+    story.append(
+        styled_table(goals, BRAND_ORANGE)
+    )
+
+# ---------- Recommendation ----------
+
+story.append(Paragraph("Recommendation", section_style))
+
+recommendation_style = ParagraphStyle(
+    "Recommendation",
+    parent=base_styles["Normal"],
+    textColor=colors.white,
+    fontSize=11,
+    leading=16
 )
 
-story.append(
-    Paragraph(
-        f"Period: {start_date} to {end_date}",
-        styles["Normal"]
-    )
+advice_clean = " ".join(advice.split())
+
+recommendation_box = Table(
+    [[Paragraph(advice_clean, recommendation_style)]],
+    colWidths=[content_width]
 )
 
-story.append(
-    Paragraph(
-        f"Total Income: {money(total_income)}",
-        styles["Normal"]
-    )
+recommendation_box.setStyle(
+    TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BRAND_PURPLE),
+        ("TOPPADDING", (0, 0), (-1, -1), 16),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 16),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 16),
+    ])
 )
 
-story.append(
-    Paragraph(
-        f"Total Expenses: {money(total_expenses)}",
-        styles["Normal"]
-    )
-)
-
-story.append(
-    Paragraph(
-        f"Balance: {money(balance)}",
-        styles["Normal"]
-    )
-)
-
-story.append(
-    Paragraph(
-        f"Savings Rate: {savings_rate:.1f}%",
-        styles["Normal"]
-    )
-)
+story.append(recommendation_box)
 
 doc.build(story)
 
@@ -612,7 +911,8 @@ st.download_button(
     "📄 Download PDF Report",
     pdf_buffer.getvalue(),
     file_name="MyFinApp_Report.pdf",
-    mime="application/pdf"
+    mime="application/pdf",
+    use_container_width=True
 )
 
 # =====================================================
