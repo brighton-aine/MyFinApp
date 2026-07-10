@@ -46,7 +46,7 @@ with st.expander(
     expanded=True
 ):
 
-    with st.form("goal_form"):
+    with st.form("goal_form", clear_on_submit=True):
 
         goal_name = st.text_input(
             "Goal Name"
@@ -71,7 +71,8 @@ with st.expander(
             )
 
         save_goal = st.form_submit_button(
-            "💾 Save Goal"
+            "💾 Save Goal",
+            use_container_width=True
         )
 
 if save_goal:
@@ -80,6 +81,12 @@ if save_goal:
 
         st.warning(
             "Please enter a goal name."
+        )
+
+    elif target <= 0:
+
+        st.warning(
+            "Target amount must be greater than zero."
         )
 
     else:
@@ -100,7 +107,7 @@ if save_goal:
                 )
                 """,
                 (
-                    goal_name,
+                    goal_name.strip(),
                     target,
                     current
                 )
@@ -133,6 +140,21 @@ goals_df = pd.read_sql(
     conn
 )
 
+if not goals_df.empty:
+
+    goals_df["progress_pct"] = goals_df.apply(
+        lambda r: min((r["current"] / r["target"]) * 100, 100)
+        if r["target"] > 0
+        else 0,
+        axis=1
+    )
+
+    goals_df["status"] = goals_df["progress_pct"].apply(
+        lambda p: "Completed" if p >= 100
+        else "On Track" if p >= 50
+        else "Just Started"
+    )
+
 # =====================================================
 # KPI CARDS
 # =====================================================
@@ -160,16 +182,23 @@ if not goals_df.empty:
         ]
     )
 
+    overall_progress = (
+        (total_saved / total_target) * 100
+        if total_target > 0
+        else 0
+    )
+
 else:
 
     total_goals = 0
     total_target = 0
     total_saved = 0
     completed_goals = 0
+    overall_progress = 0
 
 st.divider()
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 
 with c1:
 
@@ -188,15 +217,22 @@ with c2:
 with c3:
 
     st.metric(
-        "🏁 Completed",
-        completed_goals
+        "📈 Target",
+        money(total_target)
     )
 
 with c4:
 
     st.metric(
-        "📈 Target",
-        money(total_target)
+        "🏁 Completed",
+        completed_goals
+    )
+
+with c5:
+
+    st.metric(
+        "📊 Overall Progress",
+        f"{overall_progress:.1f}%"
     )
 
 # =====================================================
@@ -215,31 +251,36 @@ if not goals_df.empty:
             "📊 Goal Completion (%)"
         )
 
-        chart_df = goals_df.copy()
-
-        chart_df["progress"] = (
-            chart_df["current"]
-            /
-            chart_df["target"]
-            * 100
-        )
-
-        chart_df["progress"] = (
-            chart_df["progress"]
-            .clip(upper=100)
+        chart_df = goals_df.sort_values(
+            "progress_pct",
+            ascending=True
         )
 
         fig = px.bar(
             chart_df,
-            x="goal_name",
-            y="progress",
-            color="progress",
-            color_continuous_scale="Greens"
+            x="progress_pct",
+            y="goal_name",
+            orientation="h",
+            color="status",
+            color_discrete_map={
+                "Completed": "#10B981",
+                "On Track": "#3B82F6",
+                "Just Started": "#F59E0B"
+            },
+            text="progress_pct"
+        )
+
+        fig.update_traces(
+            texttemplate="%{text:.0f}%",
+            textposition="outside"
         )
 
         fig.update_layout(
             height=450,
-            yaxis_title="Completion %"
+            xaxis_title="Completion %",
+            yaxis_title="",
+            xaxis_range=[0, 110],
+            legend_title=""
         )
 
         st.plotly_chart(
@@ -257,7 +298,8 @@ if not goals_df.empty:
             goals_df,
             names="goal_name",
             values="current",
-            hole=0.65
+            hole=0.65,
+            color_discrete_sequence=px.colors.sequential.Greens_r
         )
 
         fig.update_layout(
@@ -283,7 +325,10 @@ if not goals_df.empty:
 
     selected_id = st.selectbox(
         "Select Goal",
-        goals_df["id"]
+        goals_df["id"],
+        format_func=lambda gid: goals_df.loc[
+            goals_df["id"] == gid, "goal_name"
+        ].values[0]
     )
 
     selected_goal = goals_df[
@@ -333,7 +378,8 @@ if not goals_df.empty:
 
             update_btn = (
                 st.form_submit_button(
-                    "💾 Update"
+                    "💾 Update",
+                    use_container_width=True
                 )
             )
 
@@ -341,7 +387,8 @@ if not goals_df.empty:
 
             delete_btn = (
                 st.form_submit_button(
-                    "🗑 Delete"
+                    "🗑 Delete",
+                    use_container_width=True
                 )
             )
 
@@ -349,38 +396,52 @@ if not goals_df.empty:
 
     if update_btn:
 
-        try:
+        if edit_goal_name.strip() == "":
 
-            cursor.execute(
-                """
-                UPDATE goals
-                SET
-                    goal_name=?,
-                    target=?,
-                    current=?
-                WHERE id=?
-                """,
-                (
-                    edit_goal_name,
-                    edit_target,
-                    edit_current,
-                    int(selected_id)
+            st.warning(
+                "Please enter a goal name."
+            )
+
+        elif edit_target <= 0:
+
+            st.warning(
+                "Target amount must be greater than zero."
+            )
+
+        else:
+
+            try:
+
+                cursor.execute(
+                    """
+                    UPDATE goals
+                    SET
+                        goal_name=?,
+                        target=?,
+                        current=?
+                    WHERE id=?
+                    """,
+                    (
+                        edit_goal_name.strip(),
+                        edit_target,
+                        edit_current,
+                        int(selected_id)
+                    )
                 )
-            )
 
-            conn.commit()
+                conn.commit()
 
-            st.success(
-                "Goal updated successfully."
-            )
+                st.success(
+                    "Goal updated successfully."
+                )
 
-            st.rerun()
+                st.rerun()
 
-        except Exception as e:
+            except Exception as e:
 
-            st.error(
-                f"Error: {e}"
-            )
+                st.error(
+                    f"Error: {e}"
+                )
 
     # DELETE GOAL
 
@@ -412,6 +473,12 @@ if not goals_df.empty:
                 f"Error: {e}"
             )
 
+else:
+
+    st.info(
+        "No goals to edit yet."
+    )
+
 # =====================================================
 # GOAL PROGRESS
 # =====================================================
@@ -424,46 +491,72 @@ st.subheader(
 
 if not goals_df.empty:
 
-    for _, row in goals_df.iterrows():
+    status_filter = st.radio(
+        "Filter",
+        options=["All", "Completed", "On Track", "Just Started"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
 
-        progress = 0
+    progress_view = goals_df.sort_values(
+        "progress_pct",
+        ascending=False
+    )
 
-        if row["target"] > 0:
+    if status_filter != "All":
 
-            progress = (
-                row["current"]
-                /
-                row["target"]
-            )
+        progress_view = progress_view[
+            progress_view["status"] == status_filter
+        ]
 
-        progress = min(
-            progress,
-            1
+    status_badge = {
+        "Completed": "🟢 Completed",
+        "On Track": "🔵 On Track",
+        "Just Started": "🟡 Just Started"
+    }
+
+    if progress_view.empty:
+
+        st.caption(
+            f"No goals with status \"{status_filter}\"."
         )
 
-        percentage = (
-            progress * 100
+    for _, row in progress_view.iterrows():
+
+        remaining = max(
+            row["target"] - row["current"],
+            0
         )
+
+        badge = status_badge.get(row["status"], "")
 
         st.markdown(
-            f"### {row['goal_name']}"
+            f"### {row['goal_name']} · {badge}"
         )
 
-        st.write(
-            f"Saved: {money(row['current'])}"
-        )
+        gcol1, gcol2, gcol3 = st.columns(3)
 
-        st.write(
-            f"Target: {money(row['target'])}"
-        )
+        with gcol1:
+            st.write(f"Saved: {money(row['current'])}")
+
+        with gcol2:
+            st.write(f"Target: {money(row['target'])}")
+
+        with gcol3:
+            st.write(
+                "Remaining: " +
+                (money(remaining) if remaining > 0 else "🎉 Goal reached!")
+            )
 
         st.progress(
-            float(progress)
+            float(row["progress_pct"]) / 100
         )
 
         st.caption(
-            f"{percentage:.1f}% Complete"
+            f"{row['progress_pct']:.1f}% Complete"
         )
+
+        st.write("")
 
 # =====================================================
 # GOAL RECORDS
@@ -477,7 +570,9 @@ st.subheader(
 
 if not goals_df.empty:
 
-    display_df = goals_df.copy()
+    display_df = goals_df.drop(
+        columns=["progress_pct"]
+    ).copy()
 
     display_df["target"] = (
         display_df["target"]
@@ -492,7 +587,26 @@ if not goals_df.empty:
     st.dataframe(
         display_df,
         use_container_width=True,
-        height=500
+        height=500,
+        hide_index=True
+    )
+
+    # =====================================================
+    # EXPORT
+    # =====================================================
+
+    csv_data = goals_df.drop(
+        columns=["progress_pct"]
+    ).to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        "📥 Export Goals",
+        csv_data,
+        file_name="goals.csv",
+        mime="text/csv",
+        use_container_width=True
     )
 
 else:
@@ -502,30 +616,36 @@ else:
     )
 
 # =====================================================
-# EXPORT
-# =====================================================
-
-if not goals_df.empty:
-
-    csv_data = goals_df.to_csv(
-        index=False
-    ).encode("utf-8")
-
-    st.download_button(
-        "📥 Export Goals",
-        csv_data,
-        file_name="goals.csv",
-        mime="text/csv"
-    )
-
-# =====================================================
 # MOTIVATION CARD
 # =====================================================
 
 st.divider()
 
+if total_goals > 0 and completed_goals == total_goals:
+
+    tip_text = (
+        "All your goals are complete — incredible work. "
+        "Consider setting a new, bigger goal to keep the momentum going."
+    )
+
+elif not goals_df.empty and (goals_df["status"] == "Just Started").sum() > 0:
+
+    tip_text = (
+        "Break large goals into smaller milestones. "
+        "Contributing consistently every month is "
+        "often more effective than waiting for large "
+        "one-time savings opportunities."
+    )
+
+else:
+
+    tip_text = (
+        "Track progress regularly and celebrate milestones along the way — "
+        "small, consistent contributions compound into big results."
+    )
+
 st.markdown(
-    """
+    f"""
     <div style="
     background:linear-gradient(
         135deg,
@@ -541,14 +661,7 @@ st.markdown(
         </h3>
 
         <p>
-        Break large goals into smaller milestones.
-
-        Contributing consistently every month is
-        often more effective than waiting for large
-        one-time savings opportunities.
-
-        Track progress regularly and celebrate
-        milestones along the way.
+        {tip_text}
         </p>
     </div>
     """,

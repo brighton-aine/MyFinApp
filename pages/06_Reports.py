@@ -37,6 +37,43 @@ from database.db import (
 )
 
 # =====================================================
+# DISPLAY FORMATTING HELPERS
+# =====================================================
+
+CURRENCY_LIKE_COLUMNS = {
+    "amount", "target", "current", "saved", "balance",
+    "budget", "spent", "remaining", "limit", "value"
+}
+
+
+def format_numeric_for_display(df: pd.DataFrame) -> pd.DataFrame:
+    """Comma-format every numeric column for display. Currency-like
+    columns (amount, target, current, etc.) get full money() formatting
+    with the currency symbol; other numeric columns (ids, counts) just
+    get comma separators, e.g. 1,000,000."""
+
+    display_df = df.copy()
+
+    for col in display_df.columns:
+
+        if pd.api.types.is_numeric_dtype(display_df[col]):
+
+            if str(col).lower() in CURRENCY_LIKE_COLUMNS:
+
+                display_df[col] = display_df[col].apply(
+                    lambda v: money(v) if pd.notna(v) else ""
+                )
+
+            else:
+
+                display_df[col] = display_df[col].apply(
+                    lambda v: f"{v:,.0f}" if pd.notna(v) else ""
+                )
+
+    return display_df
+
+
+# =====================================================
 # APP SETUP
 # =====================================================
 
@@ -124,7 +161,7 @@ expenses = pd.read_sql(
 budgets = pd.read_sql(
     """
     SELECT *
-    FROM budgets
+    FROM budget
     """,
     conn
 )
@@ -479,7 +516,7 @@ if not goals.empty:
     )
 
     st.dataframe(
-        goals,
+        format_numeric_for_display(goals),
         use_container_width=True,
         hide_index=True
     )
@@ -497,7 +534,7 @@ if not budgets.empty:
     )
 
     st.dataframe(
-        budgets,
+        format_numeric_for_display(budgets),
         use_container_width=True,
         hide_index=True
     )
@@ -669,10 +706,18 @@ def styled_table(df: pd.DataFrame, header_color, col_widths=None):
 
     for col in display_df.columns:
 
-        if str(col).lower() == "amount":
+        is_numeric = pd.api.types.is_numeric_dtype(df[col])
+
+        if is_numeric and str(col).lower() in CURRENCY_LIKE_COLUMNS:
 
             display_df[col] = display_df[col].apply(
                 lambda v: money(v) if pd.notna(v) else ""
+            )
+
+        elif is_numeric:
+
+            display_df[col] = display_df[col].apply(
+                lambda v: f"{v:,.0f}" if pd.notna(v) else ""
             )
 
         else:
