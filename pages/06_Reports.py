@@ -163,14 +163,14 @@ try:
     budgets = pd.read_sql(
         """
         SELECT *
-        FROM budget
+        FROM budgets
         """,
         conn
     )
 
 except Exception:
 
-    budgets = pd.DataFrame(columns=["category", "amount"])
+    budgets = pd.DataFrame(columns=["category", "budget"])
 
 goals = pd.read_sql(
     """
