@@ -158,13 +158,19 @@ expenses = pd.read_sql(
     ]
 )
 
-budgets = pd.read_sql(
-    """
-    SELECT *
-    FROM budget
-    """,
-    conn
-)
+try:
+
+    budgets = pd.read_sql(
+        """
+        SELECT *
+        FROM budget
+        """,
+        conn
+    )
+
+except Exception:
+
+    budgets = pd.DataFrame(columns=["category", "amount"])
 
 goals = pd.read_sql(
     """
