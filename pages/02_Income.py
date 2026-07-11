@@ -48,46 +48,165 @@ categories = [
 ]
 
 # =====================================================
-# ADD INCOME
+# LOAD INCOME
 # =====================================================
+
+income_df = pd.read_sql(
+    """
+    SELECT *
+    FROM income
+    ORDER BY id DESC
+    """,
+    conn
+)
+
+if not income_df.empty:
+
+    income_df["date"] = pd.to_datetime(
+        income_df["date"]
+    )
+
+# =====================================================
+# ADD INCOME
+#
+# Deliberately NOT wrapped in st.form. Streamlit forms only rerun on
+# submit, which means widgets inside them can't react live to each
+# other — so a form would block the quick-amount buttons, the running
+# monthly total, and the duplicate check below from working. The
+# trade-off is a rerun on every keystroke/selection instead of one
+# batched submit, which is a good trade for a lightweight entry form
+# like this.
+# =====================================================
+
+if not income_df.empty:
+
+    default_category = (
+        income_df["category"]
+        .value_counts()
+        .idxmax()
+    )
+
+else:
+
+    default_category = categories[0]
+
+default_category_index = (
+    categories.index(default_category)
+    if default_category in categories
+    else 0
+)
+
+today = date.today()
+
+if not income_df.empty:
+
+    this_month_so_far = income_df[
+        (income_df["date"].dt.month == today.month) &
+        (income_df["date"].dt.year == today.year)
+    ]["amount"].sum()
+
+else:
+
+    this_month_so_far = 0
 
 with st.expander(
     "➕ Add New Income",
     expanded=True
 ):
 
-    with st.form("income_form", clear_on_submit=True):
+    st.caption(
+        f"📅 Logged so far this month: **{money(this_month_so_far)}**"
+    )
 
-        col1, col2 = st.columns(2)
+    st.caption("Quick amounts (tap to add)")
 
-        with col1:
+    quick_amounts = [10_000, 50_000, 100_000, 500_000, 1_000_000]
 
-            income_date = st.date_input(
-                "Date",
-                value=date.today()
-            )
+    quick_cols = st.columns(len(quick_amounts))
 
-            category = st.selectbox(
-                "Category",
-                categories
-            )
+    for i, qa in enumerate(quick_amounts):
 
-        with col2:
+        with quick_cols[i]:
 
-            description = st.text_input(
-                "Description"
-            )
+            if st.button(
+                f"+{qa:,.0f}",
+                key=f"quick_income_{qa}",
+                use_container_width=True
+            ):
 
-            amount = st.number_input(
-                "Amount (UGX)",
-                min_value=0.0,
-                format="%.2f"
-            )
+                st.session_state["income_amount_input"] = (
+                    st.session_state.get("income_amount_input", 0.0) + qa
+                )
 
-        submit = st.form_submit_button(
-            "💾 Save Income",
-            use_container_width=True
+                st.rerun()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        income_date = st.date_input(
+            "Date",
+            value=date.today(),
+            key="income_date_input"
         )
+
+        category = st.selectbox(
+            "Category",
+            categories,
+            index=default_category_index,
+            key="income_category_input"
+        )
+
+    with col2:
+
+        description = st.text_input(
+            "Description",
+            placeholder='Optional, e.g. "July salary"',
+            key="income_description_input"
+        )
+
+        amount = st.number_input(
+            "Amount (UGX)",
+            min_value=0.0,
+            format="%.2f",
+            key="income_amount_input"
+        )
+
+    potential_duplicate = False
+
+    if not income_df.empty and amount > 0:
+
+        potential_duplicate = not income_df[
+            (income_df["date"] == pd.Timestamp(income_date)) &
+            (income_df["category"] == category) &
+            (income_df["amount"] == amount)
+        ].empty
+
+    if potential_duplicate:
+
+        st.warning(
+            "⚠️ A very similar income entry (same date, category and "
+            "amount) already exists."
+        )
+
+    save_col1, save_col2 = st.columns([3, 1])
+
+    with save_col1:
+
+        submit = st.button(
+            "💾 Save Anyway" if potential_duplicate else "💾 Save Income",
+            use_container_width=True,
+            type="primary"
+        )
+
+    with save_col2:
+
+        if st.session_state.get("income_amount_input", 0.0) > 0:
+
+            if st.button("↺ Clear", use_container_width=True):
+
+                st.session_state["income_amount_input"] = 0.0
+                st.rerun()
 
 if submit:
 
@@ -125,6 +244,12 @@ if submit:
 
             conn.commit()
 
+            # Clear amount + description so the next entry starts fresh,
+            # but leave date/category as-is — handy when logging several
+            # same-day, same-category entries back to back.
+            st.session_state["income_amount_input"] = 0.0
+            st.session_state["income_description_input"] = ""
+
             st.success(
                 "Income saved successfully."
             )
@@ -136,25 +261,6 @@ if submit:
             st.error(
                 f"Error: {e}"
             )
-
-# =====================================================
-# LOAD INCOME
-# =====================================================
-
-income_df = pd.read_sql(
-    """
-    SELECT *
-    FROM income
-    ORDER BY id DESC
-    """,
-    conn
-)
-
-if not income_df.empty:
-
-    income_df["date"] = pd.to_datetime(
-        income_df["date"]
-    )
 
 # =====================================================
 # KPI CARDS

@@ -52,46 +52,218 @@ categories = [
 ]
 
 # =====================================================
-# ADD EXPENSE
+# LOAD DATA
 # =====================================================
+
+expense_df = pd.read_sql(
+    """
+    SELECT *
+    FROM expenses
+    ORDER BY id DESC
+    """,
+    conn
+)
+
+if not expense_df.empty:
+
+    expense_df["date"] = pd.to_datetime(
+        expense_df["date"]
+    )
+
+# Budget table — actual schema is `budgets` (plural) with a `budget`
+# column; renamed to `amount` here so the rest of this file's logic
+# (written against a generic "amount" column) doesn't need to change.
+try:
+    budget_df = pd.read_sql(
+        "SELECT * FROM budgets",
+        conn
+    )
+    budget_df = budget_df.rename(columns={"budget": "amount"})
+except Exception:
+    budget_df = pd.DataFrame(columns=["category", "amount"])
+
+has_budget = (
+    not budget_df.empty and
+    "amount" in budget_df.columns and
+    budget_df["amount"].sum() > 0
+)
+
+# =====================================================
+# ADD EXPENSE
+#
+# Deliberately NOT wrapped in st.form — a form only reruns on submit,
+# which would block the quick-amount buttons, the live "budget
+# remaining for this category" hint, and the duplicate check below
+# from reacting as you fill the form in.
+# =====================================================
+
+if not expense_df.empty:
+
+    default_category = (
+        expense_df["category"]
+        .value_counts()
+        .idxmax()
+    )
+
+else:
+
+    default_category = categories[0]
+
+default_category_index = (
+    categories.index(default_category)
+    if default_category in categories
+    else 0
+)
+
+today_add = date.today()
+
+if not expense_df.empty:
+
+    this_month_so_far_expense = expense_df[
+        (expense_df["date"].dt.month == today_add.month) &
+        (expense_df["date"].dt.year == today_add.year)
+    ]["amount"].sum()
+
+else:
+
+    this_month_so_far_expense = 0
 
 with st.expander(
     "➕ Add New Expense",
     expanded=True
 ):
 
-    with st.form("expense_form", clear_on_submit=True):
+    st.caption(
+        f"📅 Logged so far this month: **{money(this_month_so_far_expense)}**"
+    )
 
-        col1, col2 = st.columns(2)
+    st.caption("Quick amounts (tap to add)")
 
-        with col1:
+    quick_amounts = [5_000, 10_000, 50_000, 100_000, 500_000]
 
-            expense_date = st.date_input(
-                "Date",
-                value=date.today()
-            )
+    quick_cols = st.columns(len(quick_amounts))
 
-            category = st.selectbox(
-                "Category",
-                categories
-            )
+    for i, qa in enumerate(quick_amounts):
 
-        with col2:
+        with quick_cols[i]:
 
-            description = st.text_input(
-                "Description"
-            )
+            if st.button(
+                f"+{qa:,.0f}",
+                key=f"quick_expense_{qa}",
+                use_container_width=True
+            ):
 
-            amount = st.number_input(
-                "Amount (UGX)",
-                min_value=0.0,
-                format="%.2f"
-            )
+                st.session_state["expense_amount_input"] = (
+                    st.session_state.get("expense_amount_input", 0.0) + qa
+                )
 
-        save_btn = st.form_submit_button(
-            "💾 Save Expense",
-            use_container_width=True
+                st.rerun()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        expense_date = st.date_input(
+            "Date",
+            value=date.today(),
+            key="expense_date_input"
         )
+
+        category = st.selectbox(
+            "Category",
+            categories,
+            index=default_category_index,
+            key="expense_category_input"
+        )
+
+    with col2:
+
+        description = st.text_input(
+            "Description",
+            placeholder='e.g. "Rent, July"',
+            key="expense_description_input"
+        )
+
+        amount = st.number_input(
+            "Amount (UGX)",
+            min_value=0.0,
+            format="%.2f",
+            key="expense_amount_input"
+        )
+
+    # Live budget context for whichever category is currently selected —
+    # this only updates in real time because category lives outside a form.
+    if has_budget:
+
+        category_budget = (
+            budget_df[budget_df["category"] == category]["amount"].sum()
+        )
+
+        if category_budget > 0:
+
+            category_spent_this_month = (
+                expense_df[
+                    (expense_df["category"] == category) &
+                    (expense_df["date"].dt.month == today_add.month) &
+                    (expense_df["date"].dt.year == today_add.year)
+                ]["amount"].sum()
+                if not expense_df.empty
+                else 0
+            )
+
+            category_remaining = category_budget - category_spent_this_month
+            projected_remaining = category_remaining - amount
+
+            if projected_remaining < 0:
+
+                st.warning(
+                    f"⚠️ This entry would put **{category}** "
+                    f"{money(abs(projected_remaining))} over budget "
+                    f"this month (budget: {money(category_budget)})."
+                )
+
+            else:
+
+                st.caption(
+                    f"🎯 {category} budget remaining after this entry: "
+                    f"**{money(projected_remaining)}** of {money(category_budget)}"
+                )
+
+    potential_duplicate = False
+
+    if not expense_df.empty and amount > 0:
+
+        potential_duplicate = not expense_df[
+            (expense_df["date"] == pd.Timestamp(expense_date)) &
+            (expense_df["category"] == category) &
+            (expense_df["amount"] == amount)
+        ].empty
+
+    if potential_duplicate:
+
+        st.warning(
+            "⚠️ A very similar expense (same date, category and amount) "
+            "already exists."
+        )
+
+    save_col1, save_col2 = st.columns([3, 1])
+
+    with save_col1:
+
+        save_btn = st.button(
+            "💾 Save Anyway" if potential_duplicate else "💾 Save Expense",
+            use_container_width=True,
+            type="primary"
+        )
+
+    with save_col2:
+
+        if st.session_state.get("expense_amount_input", 0.0) > 0:
+
+            if st.button("↺ Clear", use_container_width=True):
+
+                st.session_state["expense_amount_input"] = 0.0
+                st.rerun()
 
 if save_btn:
 
@@ -129,6 +301,9 @@ if save_btn:
 
             conn.commit()
 
+            st.session_state["expense_amount_input"] = 0.0
+            st.session_state["expense_description_input"] = ""
+
             st.success(
                 "Expense added successfully."
             )
@@ -140,40 +315,6 @@ if save_btn:
             st.error(
                 f"Error: {e}"
             )
-
-# =====================================================
-# LOAD DATA
-# =====================================================
-
-expense_df = pd.read_sql(
-    """
-    SELECT *
-    FROM expenses
-    ORDER BY id DESC
-    """,
-    conn
-)
-
-if not expense_df.empty:
-
-    expense_df["date"] = pd.to_datetime(
-        expense_df["date"]
-    )
-
-# Budget table is optional — used to show over/under-budget status.
-try:
-    budget_df = pd.read_sql(
-        "SELECT * FROM budget",
-        conn
-    )
-except Exception:
-    budget_df = pd.DataFrame(columns=["category", "amount"])
-
-has_budget = (
-    not budget_df.empty and
-    "amount" in budget_df.columns and
-    budget_df["amount"].sum() > 0
-)
 
 # =====================================================
 # KPI CARDS
