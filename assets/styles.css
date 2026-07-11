@@ -236,3 +236,60 @@ details {
     box-shadow:
         0px 4px 12px rgba(0, 0, 0, 0.05);
 }
+
+/* =====================================================
+   SIDEBAR NAVIGATION (Streamlit's auto-generated page list)
+===================================================== */
+
+/* Hide the auto-generated "app" entry — this is the link to
+   app.py itself (the root page), always listed first. Targeted
+   by position since Streamlit doesn't expose a way to target it
+   by name. If you ever add a page above pages/ in load order,
+   double check this still hides the right one. */
+section[data-testid="stSidebarNav"] ul li:first-child {
+    display: none;
+}
+
+/* Bigger, bolder nav menu text */
+section[data-testid="stSidebarNav"] a span {
+    font-size: 17px !important;
+    font-weight: 600 !important;
+}
+
+section[data-testid="stSidebarNav"] a {
+    padding: 10px 14px !important;
+    border-radius: 10px !important;
+}
+
+section[data-testid="stSidebarNav"] a:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Highlight the current page */
+section[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: rgba(37, 99, 235, 0.35) !important;
+}
+
+/* =====================================================
+   SIDEBAR COLLAPSE CONTROL
+   Best-effort restyle of Streamlit's built-in sidebar
+   toggle into a hamburger icon (☰) instead of the default
+   "»" arrows. This targets Streamlit's internal component
+   structure, which isn't officially documented and can
+   change between Streamlit versions — if a future upgrade
+   breaks this, you'll just see the plain arrow icon again,
+   nothing will be broken functionally.
+===================================================== */
+
+[data-testid="stSidebarCollapseButton"] svg,
+[data-testid="collapsedControl"] svg {
+    display: none;
+}
+
+[data-testid="stSidebarCollapseButton"] button::before,
+[data-testid="collapsedControl"] button::before {
+    content: "\2630";
+    font-size: 22px;
+    line-height: 1;
+    color: #0F172A;
+}

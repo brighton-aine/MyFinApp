@@ -42,7 +42,7 @@ def render_sidebar():
 
             st.image(
                 "assets/logo.png",
-                width=180
+                width=90
             )
 
         except Exception:
