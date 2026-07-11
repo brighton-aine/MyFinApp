@@ -242,16 +242,19 @@ details {
 ===================================================== */
 
 /* Hide the auto-generated "app" entry — this is the link to
-   app.py itself (the root page), always listed first. Targeted
-   by position since Streamlit doesn't expose a way to target it
-   by name. If you ever add a page above pages/ in load order,
-   double check this still hides the right one. */
-section[data-testid="stSidebarNav"] ul li:first-child {
-    display: none;
+   app.py itself (the root page). Targeted by its href ("/"),
+   which is more reliable across Streamlit versions than
+   targeting it by position in the list. */
+section[data-testid="stSidebarNav"] a[href="/"],
+section[data-testid="stSidebarNav"] a[href$="/app"] {
+    display: none !important;
 }
 
-/* Bigger, bolder nav menu text */
-section[data-testid="stSidebarNav"] a span {
+/* Bigger, bolder nav menu text. Broadened to catch the link
+   itself and everything inside it, in case the text isn't
+   wrapped in a <span> in your Streamlit version. */
+section[data-testid="stSidebarNav"] a,
+section[data-testid="stSidebarNav"] a * {
     font-size: 17px !important;
     font-weight: 600 !important;
 }
