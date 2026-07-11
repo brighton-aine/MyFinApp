@@ -1,5 +1,4 @@
 import re
-import os
 import hmac
 import hashlib
 
@@ -38,32 +37,23 @@ cursor = conn.cursor()
 # =====================================================
 # PASSWORD HASHING HELPERS
 #
-# Self-contained (stdlib only) PBKDF2 hashing. Designed to be
-# backward-compatible with existing plain-text passwords: verify_password
-# falls back to a direct comparison if the stored value isn't in the
-# "salt$hash" format, so current users can still log in. Once someone
-# changes their password here, it's stored properly hashed going forward.
+# Matches your login page (app.py) exactly: hashlib.sha256(password)
+# hexdigest, unsalted. Using a different scheme here (e.g. a salted
+# hash) would make "Current Password" verification fail for every
+# real account, since app.py is what actually wrote the stored value.
 #
-# IMPORTANT: your login page's password check must also call
-# verify_password() (shown below) instead of a raw "==" comparison,
-# or anyone who changes their password here will be locked out.
+# Note: unsalted single-round SHA-256 is hashed (not plain text), but
+# it's weaker than a proper password hash (no salt means identical
+# passwords produce identical hashes, and it's fast to brute-force).
+# If you want to upgrade to something like PBKDF2 or bcrypt later,
+# both this page and app.py's login/register logic need to change
+# together — happy to do that as a follow-up.
 # =====================================================
-
-PBKDF2_ITERATIONS = 100_000
 
 
 def hash_password(password: str) -> str:
 
-    salt = os.urandom(16)
-
-    pwd_hash = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt,
-        PBKDF2_ITERATIONS
-    )
-
-    return f"{salt.hex()}${pwd_hash.hex()}"
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 def verify_password(password: str, stored: str) -> bool:
@@ -71,31 +61,10 @@ def verify_password(password: str, stored: str) -> bool:
     if not stored:
         return False
 
-    if "$" in stored:
-
-        try:
-
-            salt_hex, hash_hex = stored.split("$", 1)
-
-            salt = bytes.fromhex(salt_hex)
-            expected = bytes.fromhex(hash_hex)
-
-            actual = hashlib.pbkdf2_hmac(
-                "sha256",
-                password.encode("utf-8"),
-                salt,
-                PBKDF2_ITERATIONS
-            )
-
-            return hmac.compare_digest(actual, expected)
-
-        except Exception:
-
-            return False
-
-    # Legacy plain-text fallback so existing accounts keep working
-    # until their next password change.
-    return hmac.compare_digest(password, stored)
+    return hmac.compare_digest(
+        hashlib.sha256(password.encode()).hexdigest(),
+        stored
+    )
 
 
 def is_valid_email(value: str) -> bool:
@@ -352,8 +321,7 @@ st.subheader(
 )
 
 st.caption(
-    "Your new password will be stored securely hashed, regardless of "
-    "how your current password is stored."
+    "Your new password is hashed the same way your account already is."
 )
 
 with st.form("change_password_form", clear_on_submit=True):
