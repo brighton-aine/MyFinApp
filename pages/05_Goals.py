@@ -38,42 +38,128 @@ conn = get_connection()
 cursor = conn.cursor()
 
 # =====================================================
-# ADD GOAL
+# LOAD GOALS
 # =====================================================
+
+goals_df = pd.read_sql(
+    """
+    SELECT *
+    FROM goals
+    ORDER BY id DESC
+    """,
+    conn
+)
+
+if not goals_df.empty:
+
+    goals_df["progress_pct"] = goals_df.apply(
+        lambda r: min((r["current"] / r["target"]) * 100, 100)
+        if r["target"] > 0
+        else 0,
+        axis=1
+    )
+
+    goals_df["status"] = goals_df["progress_pct"].apply(
+        lambda p: "Completed" if p >= 100
+        else "On Track" if p >= 50
+        else "Just Started"
+    )
+
+# =====================================================
+# ADD GOAL
+#
+# Not wrapped in st.form — that would block the live progress
+# preview and duplicate-name check below from updating as you type.
+# =====================================================
+
+existing_goal_names = (
+    set(goals_df["goal_name"].str.lower())
+    if not goals_df.empty
+    else set()
+)
 
 with st.expander(
     "➕ Create New Goal",
     expanded=True
 ):
 
-    with st.form("goal_form", clear_on_submit=True):
+    goal_name = st.text_input(
+        "Goal Name",
+        key="add_goal_name"
+    )
 
-        goal_name = st.text_input(
-            "Goal Name"
+    if goal_name.strip() and goal_name.strip().lower() in existing_goal_names:
+
+        st.warning(
+            f"You already have a goal named \"{goal_name.strip()}\". "
+            "Consider editing that one instead, or use a different name."
         )
 
-        col1, col2 = st.columns(2)
+    st.caption("Quick target amounts (tap to add)")
 
-        with col1:
+    quick_targets = [1_000_000, 5_000_000, 10_000_000, 50_000_000]
 
-            target = st.number_input(
-                "Target Amount (UGX)",
-                min_value=0.0,
-                format="%.2f"
-            )
+    quick_cols = st.columns(len(quick_targets))
 
-        with col2:
+    for i, qt in enumerate(quick_targets):
 
-            current = st.number_input(
-                "Current Savings (UGX)",
-                min_value=0.0,
-                format="%.2f"
-            )
+        with quick_cols[i]:
 
-        save_goal = st.form_submit_button(
-            "💾 Save Goal",
-            use_container_width=True
+            if st.button(
+                f"+{qt:,.0f}",
+                key=f"quick_goal_target_{qt}",
+                use_container_width=True
+            ):
+
+                st.session_state["add_goal_target"] = (
+                    st.session_state.get("add_goal_target", 0.0) + qt
+                )
+
+                st.rerun()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        target = st.number_input(
+            "Target Amount (UGX)",
+            min_value=0.0,
+            format="%.2f",
+            key="add_goal_target"
         )
+
+    with col2:
+
+        current = st.number_input(
+            "Current Savings (UGX)",
+            min_value=0.0,
+            format="%.2f",
+            key="add_goal_current"
+        )
+
+    if target > 0:
+
+        preview_pct = min((current / target) * 100, 100)
+
+        if current >= target:
+
+            st.caption(
+                f"🎉 This goal would already be **100% complete** "
+                f"at creation."
+            )
+
+        else:
+
+            st.caption(
+                f"📊 This goal would start at **{preview_pct:.0f}%** "
+                f"complete — {money(target - current)} left to save."
+            )
+
+    save_goal = st.button(
+        "💾 Save Goal",
+        use_container_width=True,
+        type="primary"
+    )
 
 if save_goal:
 
@@ -115,6 +201,10 @@ if save_goal:
 
             conn.commit()
 
+            st.session_state["add_goal_name"] = ""
+            st.session_state["add_goal_target"] = 0.0
+            st.session_state["add_goal_current"] = 0.0
+
             st.success(
                 "Goal saved successfully."
             )
@@ -126,34 +216,6 @@ if save_goal:
             st.error(
                 f"Error: {e}"
             )
-
-# =====================================================
-# LOAD GOALS
-# =====================================================
-
-goals_df = pd.read_sql(
-    """
-    SELECT *
-    FROM goals
-    ORDER BY id DESC
-    """,
-    conn
-)
-
-if not goals_df.empty:
-
-    goals_df["progress_pct"] = goals_df.apply(
-        lambda r: min((r["current"] / r["target"]) * 100, 100)
-        if r["target"] > 0
-        else 0,
-        axis=1
-    )
-
-    goals_df["status"] = goals_df["progress_pct"].apply(
-        lambda p: "Completed" if p >= 100
-        else "On Track" if p >= 50
-        else "Just Started"
-    )
 
 # =====================================================
 # KPI CARDS
