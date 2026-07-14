@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 
 from utils import (
     require_login,
@@ -289,7 +296,12 @@ if not monthly_income.empty:
         legend_title=""
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # EXPENSE FORECAST CHART
@@ -330,7 +342,12 @@ if not monthly_expenses.empty:
         legend_title=""
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # FORECAST SUMMARY TABLE
@@ -502,7 +519,9 @@ fig.update_layout(
 
 st.plotly_chart(
     fig,
-    use_container_width=True
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
 )
 
 # =====================================================

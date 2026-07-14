@@ -325,3 +325,14 @@ button[aria-label*="sidebar" i]::before,
     color: #0F4C3E;
     line-height: 1;
 }
+
+/* =====================================================
+   TEMPORARY DEPLOYMENT TEST — DELETE AFTER CHECKING
+   If this file is truly live, every page gets a thick red border.
+   If you don't see it after deploying + hard refresh, this file
+   is not reaching your site, and that's the real bug to chase —
+   not the CSS rules themselves.
+===================================================== */
+body {
+    border: 12px solid red !important;
+}

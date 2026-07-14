@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 
 from io import BytesIO
 from datetime import date
@@ -331,9 +338,11 @@ with left:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 with right:
 
@@ -357,9 +366,11 @@ with right:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # EXPENSE DISTRIBUTION
@@ -394,9 +405,11 @@ if not expenses.empty:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # MONTHLY EXPENSE TREND
@@ -436,9 +449,11 @@ if not expenses.empty:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # INCOME SUMMARY

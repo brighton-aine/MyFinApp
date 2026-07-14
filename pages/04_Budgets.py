@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 from datetime import date
 
 from utils import (
@@ -317,9 +324,11 @@ if not budget_df.empty:
         fig.update_layout(height=420)
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     with right:
 
@@ -358,9 +367,11 @@ if not budget_df.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # EDIT / DELETE BUDGET

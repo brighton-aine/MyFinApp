@@ -2,6 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 
 from utils import (
     require_login,
@@ -292,9 +299,11 @@ with left_chart:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 with right_chart:
 
@@ -321,9 +330,11 @@ with right_chart:
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 st.divider()
 
@@ -362,9 +373,11 @@ if has_budget:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     with budget_right:
 
@@ -398,11 +411,18 @@ if has_budget:
             )
         )
 
-        fig.update_layout(height=420)
+        fig.update_layout(
+            height=260,
+            paper_bgcolor="white",
+            font={"color": "#0F172A"},
+            margin=dict(l=20, r=20, t=30, b=0)
+        )
 
         st.plotly_chart(
             fig,
-            use_container_width=True
+            use_container_width=True,
+            theme=None,
+            config={"displayModeBar": False}
         )
 
     # Highlight categories over budget
@@ -462,9 +482,11 @@ if not expenses.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     with right:
 
@@ -504,9 +526,11 @@ if not expenses.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     st.divider()
 

@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 from datetime import date
 
 from utils import (
@@ -486,7 +493,12 @@ with left_chart:
         showlegend=False
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 with right_chart:
 
@@ -507,7 +519,12 @@ with right_chart:
 
     fig.update_layout(height=420)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # CHARTS — BREAKDOWN BY CATEGORY
@@ -545,7 +562,12 @@ if not assets_df.empty or not liabilities_df.empty:
 
             fig.update_layout(height=400)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
         else:
 
@@ -577,7 +599,12 @@ if not assets_df.empty or not liabilities_df.empty:
 
             fig.update_layout(height=400)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
         else:
 
@@ -637,7 +664,12 @@ if not history_df.empty:
         legend_title=""
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 else:
 

@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 
 from utils import (
     require_login,
@@ -95,27 +102,33 @@ with st.expander(
             "Consider editing that one instead, or use a different name."
         )
 
-    st.caption("Quick target amounts (tap to add)")
+    if st.session_state.get("_reset_goal_quick_target"):
 
-    quick_targets = [1_000_000, 5_000_000, 10_000_000, 50_000_000]
+        st.session_state["goal_quick_target_choice"] = "Custom amount"
+        st.session_state["_reset_goal_quick_target"] = False
 
-    quick_cols = st.columns(len(quick_targets))
+    quick_target_options = [
+        "Custom amount", "+1,000,000", "+5,000,000", "+10,000,000", "+50,000,000"
+    ]
 
-    for i, qt in enumerate(quick_targets):
+    quick_choice = st.selectbox(
+        "⚡ Quick target amount",
+        quick_target_options,
+        key="goal_quick_target_choice",
+        help="Pick a preset to add it to the Target Amount field below."
+    )
 
-        with quick_cols[i]:
+    if quick_choice != "Custom amount":
 
-            if st.button(
-                f"+{qt:,.0f}",
-                key=f"quick_goal_target_{qt}",
-                use_container_width=True
-            ):
+        qt_value = int(quick_choice.replace("+", "").replace(",", ""))
 
-                st.session_state["add_goal_target"] = (
-                    st.session_state.get("add_goal_target", 0.0) + qt
-                )
+        st.session_state["add_goal_target"] = (
+            st.session_state.get("add_goal_target", 0.0) + qt_value
+        )
 
-                st.rerun()
+        st.session_state["_reset_goal_quick_target"] = True
+
+        st.rerun()
 
     col1, col2 = st.columns(2)
 
@@ -346,9 +359,11 @@ if not goals_df.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     with right:
 
@@ -369,9 +384,11 @@ if not goals_df.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # EDIT / DELETE GOAL

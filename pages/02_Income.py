@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.io as pio
+
+# Force a white background on every chart in this app, regardless of
+# any dark theme Streamlit might be running under. Without this,
+# charts can silently render on a black/dark canvas since none of
+# the individual chart calls set their own background explicitly.
+pio.templates.default = "plotly_white"
 from datetime import date
 
 from utils import (
@@ -118,27 +125,37 @@ with st.expander(
         f"📅 Logged so far this month: **{money(this_month_so_far)}**"
     )
 
-    st.caption("Quick amounts (tap to add)")
+    # Reset flag pattern: session_state for a widget's own key can't be
+    # mutated in the same run it's created, so the "snap back to Custom
+    # amount after picking a quick amount" reset has to happen at the
+    # TOP of the next run, before the selectbox below is instantiated.
+    if st.session_state.get("_reset_income_quick_amount"):
 
-    quick_amounts = [10_000, 50_000, 100_000, 500_000, 1_000_000]
+        st.session_state["income_quick_amount_choice"] = "Custom amount"
+        st.session_state["_reset_income_quick_amount"] = False
 
-    quick_cols = st.columns(len(quick_amounts))
+    quick_amount_options = [
+        "Custom amount", "+10,000", "+50,000", "+100,000", "+500,000", "+1,000,000"
+    ]
 
-    for i, qa in enumerate(quick_amounts):
+    quick_choice = st.selectbox(
+        "⚡ Quick amount",
+        quick_amount_options,
+        key="income_quick_amount_choice",
+        help="Pick a preset to add it to the Amount field below."
+    )
 
-        with quick_cols[i]:
+    if quick_choice != "Custom amount":
 
-            if st.button(
-                f"+{qa:,.0f}",
-                key=f"quick_income_{qa}",
-                use_container_width=True
-            ):
+        qa_value = int(quick_choice.replace("+", "").replace(",", ""))
 
-                st.session_state["income_amount_input"] = (
-                    st.session_state.get("income_amount_input", 0.0) + qa
-                )
+        st.session_state["income_amount_input"] = (
+            st.session_state.get("income_amount_input", 0.0) + qa_value
+        )
 
-                st.rerun()
+        st.session_state["_reset_income_quick_amount"] = True
+
+        st.rerun()
 
     col1, col2 = st.columns(2)
 
@@ -427,9 +444,11 @@ if not income_df.empty:
         fig.update_layout(height=420)
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
     with right:
 
@@ -472,9 +491,11 @@ if not income_df.empty:
         )
 
         st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+    fig,
+    use_container_width=True,
+    theme=None,
+    config={"displayModeBar": False}
+)
 
 # =====================================================
 # EDIT / DELETE SECTION
