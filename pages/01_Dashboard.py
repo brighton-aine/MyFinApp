@@ -495,7 +495,7 @@ if not expenses.empty:
             x="month",
             y="amount",
             color_discrete_sequence=[
-                "#2563EB"
+                "#336EEE"
             ]
         )
 
