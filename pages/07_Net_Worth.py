@@ -654,51 +654,23 @@ st.divider()
 
 if health_score >= 75:
 
-    health_message = """
-    Excellent financial position.
-    Assets significantly exceed liabilities.
-    """
+    health_message = "Excellent financial position. Assets significantly exceed liabilities."
 
 elif health_score >= 40:
 
-    health_message = """
-    Moderate financial position.
-    Continue building assets and reducing debt.
-    """
+    health_message = "Moderate financial position. Continue building assets and reducing debt."
 
 else:
 
-    health_message = """
-    Financial risk detected.
-    Prioritize debt reduction and asset growth.
-    """
+    health_message = "Financial risk detected. Prioritize debt reduction and asset growth."
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #7C3AED
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-
-    <h3 style="color:white;">
-    ❤️ Financial Health Score
-    </h3>
-
-    <h1 style="color:white;">
-    {health_score:.0f}/100
-    </h1>
-
-    <p>
-    {health_message}
-    </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #7C3AED); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">❤️ Financial Health Score</h3>
+<h1 style="color:white;">{health_score:.0f}/100</h1>
+<p style="color:white; margin-bottom:0;">{health_message}</p>
+</div>
     """,
     unsafe_allow_html=True
 )
@@ -1063,26 +1035,10 @@ else:
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #10B981,
-        #059669
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-
-    <h3 style="color:white;">
-    💡 Wealth Building Tip
-    </h3>
-
-    <p>
-    {wealth_tip}
-    </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #10B981, #059669); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">💡 Wealth Building Tip</h3>
+<p style="color:white; margin-bottom:0;">{wealth_tip}</p>
+</div>
     """,
     unsafe_allow_html=True
 )

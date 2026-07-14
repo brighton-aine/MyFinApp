@@ -131,31 +131,11 @@ except Exception:
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #7C3AED
-    );
-    padding:25px;
-    border-radius:20px;
-    color:white;
-    margin-bottom:20px;
-    ">
-
-        <h2 style="color:white;">
-        Welcome, {username}
-        </h2>
-
-        <p>
-        📧 {email}
-        </p>
-
-        <p>
-        ✅ Account Status: Active
-        </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #7C3AED); padding:25px; border-radius:20px; color:white; margin-bottom:20px;">
+<h2 style="color:white; margin-top:0;">Welcome, {username}</h2>
+<p style="color:white; margin-bottom:6px;">📧 {email}</p>
+<p style="color:white; margin-bottom:0;">✅ Account Status: Active</p>
+</div>
     """,
     unsafe_allow_html=True
 )
@@ -460,29 +440,10 @@ st.divider()
 
 st.markdown(
     """
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #10B981,
-        #059669
-    );
-    padding:25px;
-    border-radius:20px;
-    color:white;
-    ">
-
-        <h3 style="color:white;">
-        📈 Account Summary
-        </h3>
-
-        <p>
-        Your MyFinApp account is active and ready
-        to help you manage income, expenses, budgets,
-        savings goals, reports, forecasts and overall
-        financial health.
-        </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #10B981, #059669); padding:25px; border-radius:20px; color:white;">
+<h3 style="color:white; margin-top:0;">📈 Account Summary</h3>
+<p style="color:white; margin-bottom:0;">Your MyFinApp account is active and ready to help you manage income, expenses, budgets, savings goals, reports, forecasts and overall financial health.</p>
+</div>
     """,
     unsafe_allow_html=True
 )

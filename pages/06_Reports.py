@@ -553,48 +553,22 @@ st.divider()
 
 if savings_rate >= 30:
 
-    advice = """
-    Excellent financial discipline.
-    Continue investing and
-    growing wealth.
-    """
+    advice = "Excellent financial discipline. Continue investing and growing wealth."
 
 elif savings_rate >= 10:
 
-    advice = """
-    Good performance.
-    Look for opportunities
-    to increase savings.
-    """
+    advice = "Good performance. Look for opportunities to increase savings."
 
 else:
 
-    advice = """
-    Savings are currently low.
-    Reduce expenses and
-    increase income sources.
-    """
+    advice = "Savings are currently low. Reduce expenses and increase income sources."
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #7C3AED
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-        <h3 style="color:white;">
-        🤖 Financial Recommendation
-        </h3>
-
-        <p>
-        {advice}
-        </p>
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #7C3AED); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">🤖 Financial Recommendation</h3>
+<p style="color:white; margin-bottom:0;">{advice}</p>
+</div>
     """,
     unsafe_allow_html=True
 )

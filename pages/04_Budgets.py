@@ -649,24 +649,10 @@ else:
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #7C3AED
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-        <h3 style="color:white;">
-        💡 Budgeting Tip
-        </h3>
-
-        <p>
-        {tip_text}
-        </p>
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #7C3AED); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">💡 Budgeting Tip</h3>
+<p style="color:white; margin-bottom:0;">{tip_text}</p>
+</div>
     """,
     unsafe_allow_html=True
 )

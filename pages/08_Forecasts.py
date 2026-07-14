@@ -451,20 +451,10 @@ else:
 
 st.markdown(
     f"""
-    <div style="
-    background:{card_color};
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-        <h3 style="color:white;">
-        Financial Outlook
-        </h3>
-
-        <p>
-        {message}
-        </p>
-    </div>
+<div style="background:{card_color}; padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">Financial Outlook</h3>
+<p style="color:white; margin-bottom:0;">{message}</p>
+</div>
     """,
     unsafe_allow_html=True
 )
@@ -529,44 +519,10 @@ method_note = (
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #7C3AED
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-
-        <h3 style="color:white;">
-        🤖 Forecast Advisor
-        </h3>
-
-        <p>
-        Avg Monthly Income (last 3 months):
-        <strong>{money(income_baseline)}</strong>
-
-        <br><br>
-
-        Avg Monthly Expenses (last 3 months):
-        <strong>{money(expense_baseline)}</strong>
-
-        <br><br>
-
-        Projected Savings Next Month:
-        <strong>{money(projected_savings)}</strong>
-
-        <br><br>
-
-        This forecast was generated {method_note}, projected
-        {horizon} month(s) ahead. Use these projections to plan
-        budgets, savings goals and future investments — treat them
-        as an estimate, not a guarantee.
-        </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #7C3AED); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">🤖 Forecast Advisor</h3>
+<p style="color:white; margin-bottom:0;">Avg Monthly Income (last 3 months): <strong>{money(income_baseline)}</strong><br><br>Avg Monthly Expenses (last 3 months): <strong>{money(expense_baseline)}</strong><br><br>Projected Savings Next Month: <strong>{money(projected_savings)}</strong><br><br>This forecast was generated {method_note}, projected {horizon} month(s) ahead. Use these projections to plan budgets, savings goals and future investments — treat them as an estimate, not a guarantee.</p>
+</div>
     """,
     unsafe_allow_html=True
 )

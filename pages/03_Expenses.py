@@ -879,28 +879,10 @@ if not expense_df.empty:
 
     st.markdown(
         f"""
-        <div style="
-        background:linear-gradient(
-            135deg,
-            #EF4444,
-            #F97316
-        );
-        padding:25px;
-        border-radius:18px;
-        color:white;
-        ">
-            <h3 style="color:white;">
-            💡 Spending Insight
-            </h3>
-
-            <p>
-            Your highest spending category is
-            <strong>{top_category}</strong>.
-
-            Reviewing this category regularly
-            may help improve your savings rate.{budget_line}
-            </p>
-        </div>
+<div style="background:linear-gradient(135deg, #EF4444, #F97316); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">💡 Spending Insight</h3>
+<p style="color:white; margin-bottom:0;">Your highest spending category is <strong>{top_category}</strong>. Reviewing this category regularly may help improve your savings rate.{budget_line}</p>
+</div>
         """,
         unsafe_allow_html=True
     )

@@ -42,12 +42,15 @@ expenses = pd.read_sql(
     conn
 )
 
-# Budget table is optional — fall back gracefully if it doesn't exist yet.
+# Budget table — actual schema is `budgets` (plural) with a `budget`
+# column; renamed to `amount` here so the rest of this file's logic
+# (written against a generic "amount" column) doesn't need to change.
 try:
     budget = pd.read_sql(
-        "SELECT * FROM budget",
+        "SELECT * FROM budgets",
         conn
     )
+    budget = budget.rename(columns={"budget": "amount"})
 except Exception:
     budget = pd.DataFrame(columns=["category", "amount"])
 
@@ -535,53 +538,34 @@ if has_budget:
 
 if savings_rate >= 30:
 
-    advice = f"""
-    Excellent work.
-
-    Your savings rate is strong and spending is under control.
-
-    Continue investing and growing your wealth.{budget_note}
-    """
+    advice = (
+        "Excellent work.<br><br>"
+        "Your savings rate is strong and spending is under control.<br><br>"
+        f"Continue investing and growing your wealth.{budget_note}"
+    )
 
 elif savings_rate >= 10:
 
-    advice = f"""
-    Good progress.
-
-    Look for opportunities to increase monthly savings
-    and reduce non-essential spending.{budget_note}
-    """
+    advice = (
+        "Good progress.<br><br>"
+        "Look for opportunities to increase monthly savings "
+        f"and reduce non-essential spending.{budget_note}"
+    )
 
 else:
 
-    advice = f"""
-    Savings are currently low.
-
-    Focus on reducing discretionary spending
-    and increasing income sources.{budget_note}
-    """
+    advice = (
+        "Savings are currently low.<br><br>"
+        "Focus on reducing discretionary spending "
+        f"and increasing income sources.{budget_note}"
+    )
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #2563EB,
-        #8B5CF6
-    );
-    padding:25px;
-    border-radius:18px;
-    color:white;
-    ">
-        <h3 style="color:white;">
-        Financial Recommendation
-        </h3>
-
-        <p>
-        {advice}
-        </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #2563EB, #8B5CF6); padding:25px; border-radius:18px; color:white;">
+<h3 style="color:white; margin-top:0;">Financial Recommendation</h3>
+<p style="color:white; margin-bottom:0;">{advice}</p>
+</div>
     """,
     unsafe_allow_html=True
 )

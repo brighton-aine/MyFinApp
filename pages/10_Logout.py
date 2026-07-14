@@ -41,27 +41,10 @@ render_sidebar()
 
 st.markdown(
     f"""
-    <div style="
-    background:linear-gradient(
-        135deg,
-        #EF4444,
-        #DC2626
-    );
-    padding:25px;
-    border-radius:20px;
-    color:white;
-    margin-bottom:20px;
-    ">
-
-        <h2 style="color:white;">
-        🚪 Log Out
-        </h2>
-
-        <p>
-        You are currently logged in as <strong>{current_user}</strong>.
-        </p>
-
-    </div>
+<div style="background:linear-gradient(135deg, #EF4444, #DC2626); padding:25px; border-radius:20px; color:white; margin-bottom:20px;">
+<h2 style="color:white; margin-top:0;">🚪 Log Out</h2>
+<p style="color:white; margin-bottom:0;">You are currently logged in as <strong>{current_user}</strong>.</p>
+</div>
     """,
     unsafe_allow_html=True
 )
