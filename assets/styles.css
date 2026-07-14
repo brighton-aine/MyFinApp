@@ -275,24 +275,53 @@ section[data-testid="stSidebarNav"] a[aria-current="page"] {
 
 /* =====================================================
    SIDEBAR COLLAPSE CONTROL
-   Best-effort restyle of Streamlit's built-in sidebar
-   toggle into a hamburger icon (☰) instead of the default
-   "»" arrows. This targets Streamlit's internal component
-   structure, which isn't officially documented and can
-   change between Streamlit versions — if a future upgrade
-   breaks this, you'll just see the plain arrow icon again,
-   nothing will be broken functionally.
+   Restyles Streamlit's built-in sidebar toggle into a hamburger
+   icon (☰) instead of the default "»" arrows. Targets the button
+   by its accessible label (title/aria-label containing "sidebar"),
+   which is more likely to stay stable across Streamlit versions
+   than an internal data-testid — but it's still reaching into
+   Streamlit's own markup, so if a future version changes the
+   label text, this may need a small tweak.
 ===================================================== */
 
 [data-testid="stSidebarCollapseButton"] svg,
-[data-testid="collapsedControl"] svg {
-    display: none;
+[data-testid="collapsedControl"] svg,
+button[title*="sidebar" i] svg,
+button[aria-label*="sidebar" i] svg,
+[data-testid="stHeader"] button:first-of-type svg {
+    display: none !important;
 }
 
 [data-testid="stSidebarCollapseButton"] button::before,
-[data-testid="collapsedControl"] button::before {
+[data-testid="collapsedControl"] button::before,
+button[title*="sidebar" i]::before,
+button[aria-label*="sidebar" i]::before,
+[data-testid="stHeader"] button:first-of-type::before {
     content: "\2630";
     font-size: 22px;
     line-height: 1;
     color: #0F172A;
+}
+
+/* =====================================================
+   TOP BAR BRAND WORDMARK
+   A slim cursive-font brand strip at the top of the main content
+   area, next to the sidebar toggle — set up by calling
+   render_topbar() from utils.py (already wired into
+   render_sidebar(), so every page picks it up automatically).
+===================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
+.app-topbar {
+    display: flex;
+    align-items: center;
+    padding: 4px 0 18px 44px;
+}
+
+.app-topbar .wordmark {
+    font-family: 'Pacifico', cursive;
+    font-size: 28px;
+    color: #0F4C3E;
+    line-height: 1;
 }
