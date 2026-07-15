@@ -59,17 +59,17 @@ cursor = conn.cursor()
 # =====================================================
 
 categories = [
-    "Housing",
-    "Food",
-    "Transport",
-    "Utilities",
-    "Healthcare",
-    "Education",
-    "Entertainment",
-    "Shopping",
-    "Travel",
-    "Savings",
-    "Other"
+    "🏡Housing",
+    "🥗Food",
+    "🚗Transport",
+    "💡Utilities",
+    "🏥Healthcare",
+    "📚Education",
+    "🎬Entertainment",
+    "🛍️Shopping",
+    "✈️Travel",
+    "🏦Savings",
+    "📦Other"
 ]
 
 # =====================================================

@@ -59,13 +59,13 @@ cursor = conn.cursor()
 # =====================================================
 
 categories = [
-    "Salary",
-    "Bonus",
-    "Business",
-    "Freelance",
-    "Rental Income",
-    "Interest",
-    "Other"
+    "💼 Salary",
+    "🎉 Bonus",
+    "🏢 Business",
+    "👨‍💻 Freelance",
+    "🏘️ Rental Income",
+    "📈 Interest",
+    "💰 Other"
 ]
 
 # =====================================================
