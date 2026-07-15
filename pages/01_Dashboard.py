@@ -4,11 +4,25 @@ import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
 
-# Force a white background on every chart in this app, regardless of
-# any dark theme Streamlit might be running under. Without this,
-# charts can silently render on a black/dark canvas since none of
-# the individual chart calls set their own background explicitly.
-pio.templates.default = "plotly_white"
+# Global chart defaults for this app:
+# - white background (charts could otherwise silently render on a
+#   dark/black canvas depending on the browser/OS theme)
+# - legend moved to a horizontal row ABOVE the plot instead of
+#   Plotly's default position to the right of it. The right-side
+#   position competes with the plot itself for horizontal space,
+#   which is fine on desktop but clips legend labels on narrow
+#   mobile widths (e.g. "Actual" getting cut off mid-word).
+# Individual charts can still override specific legend properties
+# (e.g. legend_title) without losing this positioning.
+pio.templates["mobile_safe"] = pio.templates["plotly_white"]
+pio.templates["mobile_safe"].layout.legend = dict(
+    orientation="h",
+    yanchor="bottom",
+    y=1.02,
+    xanchor="center",
+    x=0.5
+)
+pio.templates.default = "mobile_safe"
 
 from utils import (
     require_login,
@@ -373,11 +387,11 @@ if has_budget:
         )
 
         st.plotly_chart(
-    fig,
-    use_container_width=True,
-    theme=None,
-    config={"displayModeBar": False}
-)
+            fig,
+            use_container_width=True,
+            theme=None,
+            config={"displayModeBar": False}
+        )
 
     with budget_right:
 
@@ -394,6 +408,7 @@ if has_budget:
                 mode="gauge+number",
                 value=budget_utilization,
                 number={"suffix": "%"},
+                domain={"x": [0.1, 0.9], "y": [0, 1]},
                 gauge={
                     "axis": {"range": [0, max(120, budget_utilization + 10)]},
                     "bar": {"color": gauge_color},
@@ -415,7 +430,7 @@ if has_budget:
             height=260,
             paper_bgcolor="white",
             font={"color": "#0F172A"},
-            margin=dict(l=20, r=20, t=30, b=0)
+            margin=dict(l=30, r=30, t=30, b=0)
         )
 
         st.plotly_chart(
@@ -517,7 +532,7 @@ if not expenses.empty:
             x="month",
             y="amount",
             color_discrete_sequence=[
-                "#336EEE"
+                "#2563EB"
             ]
         )
 
