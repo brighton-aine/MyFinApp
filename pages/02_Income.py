@@ -59,14 +59,32 @@ cursor = conn.cursor()
 # =====================================================
 
 categories = [
-    "💼 Salary",
-    "🎉 Bonus",
-    "🏢 Business",
-    "👨‍💻 Freelance",
-    "🏘️ Rental Income",
-    "📈 Interest",
-    "💰 Other"
+    "Salary",
+    "Bonus",
+    "Business",
+    "Freelance",
+    "Rental Income",
+    "Interest",
+    "Other"
 ]
+
+# Icons are DISPLAY-ONLY via format_func below — the actual value saved
+# to the database is always the plain category string. Baking the icon
+# into the string itself would break every category match against
+# existing records (grouping, budgets, filters, etc.).
+CATEGORY_ICONS = {
+    "Salary": "💼",
+    "Bonus": "🎁",
+    "Business": "🏢",
+    "Freelance": "💻",
+    "Rental Income": "🏠",
+    "Interest": "🏦",
+    "Other": "📦"
+}
+
+
+def with_icon(category):
+    return f"{CATEGORY_ICONS.get(category, '📌')} {category}"
 
 # =====================================================
 # LOAD INCOME
@@ -185,6 +203,7 @@ with st.expander(
             "Category",
             categories,
             index=default_category_index,
+            format_func=with_icon,
             key="income_category_input"
         )
 
@@ -452,10 +471,18 @@ if not income_df.empty:
             names="category",
             values="amount",
             hole=0.65,
-            color_discrete_sequence=px.colors.sequential.Greens_r
+            color_discrete_sequence=px.colors.qualitative.Set2
         )
 
-        fig.update_layout(height=420)
+        fig.update_traces(
+            textinfo="label+percent",
+            textposition="inside"
+        )
+
+        fig.update_layout(
+            height=420,
+            margin=dict(t=70, b=10, l=10, r=10)
+        )
 
         st.plotly_chart(
     fig,
@@ -550,7 +577,8 @@ if not income_df.empty:
                 selected_record["category"]
             )
             if selected_record["category"] in categories
-            else 0
+            else 0,
+            format_func=with_icon
         )
 
         edit_description = st.text_input(
@@ -702,7 +730,8 @@ if not income_df.empty:
         category_filter = st.multiselect(
             "Category",
             options=sorted(income_df["category"].unique()),
-            default=[]
+            default=[],
+            format_func=with_icon
         )
 
     with f3:

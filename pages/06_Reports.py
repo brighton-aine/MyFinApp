@@ -373,10 +373,15 @@ with right:
         color_discrete_sequence=["#2563EB", "#E5E7EB"]
     )
 
+    fig.update_traces(
+        textinfo="label+percent",
+        textposition="inside"
+    )
+
     fig.update_layout(
         height=450,
-        showlegend=False,
-        title="Financial Health"
+        title="Financial Health",
+        margin=dict(t=70, b=10, l=10, r=10)
     )
 
     st.plotly_chart(
@@ -411,11 +416,17 @@ if not expenses.empty:
         names="category",
         values="amount",
         hole=0.65,
-        color_discrete_sequence=px.colors.sequential.Reds_r
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+
+    fig.update_traces(
+        textinfo="label+percent",
+        textposition="inside"
     )
 
     fig.update_layout(
-        height=500
+        height=500,
+        margin=dict(t=70, b=10, l=10, r=10)
     )
 
     st.plotly_chart(

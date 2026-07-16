@@ -390,11 +390,17 @@ if not goals_df.empty:
             names="goal_name",
             values="current",
             hole=0.65,
-            color_discrete_sequence=px.colors.sequential.Greens_r
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+
+        fig.update_traces(
+            textinfo="label+percent",
+            textposition="inside"
         )
 
         fig.update_layout(
-            height=450
+            height=450,
+            margin=dict(t=70, b=10, l=10, r=10)
         )
 
         st.plotly_chart(

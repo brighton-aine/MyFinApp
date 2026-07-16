@@ -122,6 +122,36 @@ liability_categories = [
     "Other"
 ]
 
+# Icons are DISPLAY-ONLY via format_func below — the actual value saved
+# to the database is always the plain category string. "Other" and
+# "Business" appear in both maps, which is fine since assets and
+# liabilities are always looked up from their own separate dict.
+ASSET_CATEGORY_ICONS = {
+    "Cash": "💵",
+    "Bank Savings": "🏦",
+    "Investments": "📈",
+    "Property": "🏠",
+    "Vehicle": "🚗",
+    "Business": "🏢",
+    "Other": "📦"
+}
+
+LIABILITY_CATEGORY_ICONS = {
+    "Mortgage": "🏠",
+    "Loan": "🤝",
+    "Credit Card": "💳",
+    "Student Loan": "🎓",
+    "Other": "📦"
+}
+
+
+def with_asset_icon(category):
+    return f"{ASSET_CATEGORY_ICONS.get(category, '📌')} {category}"
+
+
+def with_liability_icon(category):
+    return f"{LIABILITY_CATEGORY_ICONS.get(category, '📌')} {category}"
+
 # =====================================================
 # ADD ASSET / LIABILITY
 # =====================================================
@@ -147,6 +177,7 @@ with add_asset_tab:
             asset_category = st.selectbox(
                 "Category",
                 asset_categories,
+                format_func=with_asset_icon,
                 key="asset_category"
             )
 
@@ -228,6 +259,7 @@ with add_liability_tab:
             liability_category = st.selectbox(
                 "Category",
                 liability_categories,
+                format_func=with_liability_icon,
                 key="liability_category"
             )
 
@@ -531,7 +563,15 @@ with right_chart:
         }
     )
 
-    fig.update_layout(height=420)
+    fig.update_traces(
+        textinfo="label+percent",
+        textposition="inside"
+    )
+
+    fig.update_layout(
+        height=420,
+        margin=dict(t=70, b=10, l=10, r=10)
+    )
 
     st.plotly_chart(
     fig,
@@ -571,10 +611,18 @@ if not assets_df.empty or not liabilities_df.empty:
                 names="category",
                 values="amount",
                 hole=0.65,
-                color_discrete_sequence=px.colors.sequential.Greens_r
+                color_discrete_sequence=px.colors.qualitative.Set2
             )
 
-            fig.update_layout(height=400)
+            fig.update_traces(
+                textinfo="label+percent",
+                textposition="inside"
+            )
+
+            fig.update_layout(
+                height=400,
+                margin=dict(t=70, b=10, l=10, r=10)
+            )
 
             st.plotly_chart(
     fig,
@@ -608,10 +656,18 @@ if not assets_df.empty or not liabilities_df.empty:
                 names="category",
                 values="amount",
                 hole=0.65,
-                color_discrete_sequence=px.colors.sequential.Reds_r
+                color_discrete_sequence=px.colors.qualitative.Set2
             )
 
-            fig.update_layout(height=400)
+            fig.update_traces(
+                textinfo="label+percent",
+                textposition="inside"
+            )
+
+            fig.update_layout(
+                height=400,
+                margin=dict(t=70, b=10, l=10, r=10)
+            )
 
             st.plotly_chart(
     fig,
@@ -766,7 +822,8 @@ with edit_asset_tab:
                     asset_categories.index(selected_asset["category"])
                     if selected_asset["category"] in asset_categories
                     else 0
-                )
+                ),
+                format_func=with_asset_icon
             )
 
             edit_asset_name = st.text_input(
@@ -869,7 +926,8 @@ with edit_liability_tab:
                     liability_categories.index(selected_liability["category"])
                     if selected_liability["category"] in liability_categories
                     else 0
-                )
+                ),
+                format_func=with_liability_icon
             )
 
             edit_liability_name = st.text_input(

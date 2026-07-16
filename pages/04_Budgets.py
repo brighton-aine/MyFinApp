@@ -65,18 +65,40 @@ cursor = conn.cursor()
 # =====================================================
 
 categories = [
-    "🏠 Housing",
-    "🥗 Food",
-    "🚗 Transport",
-    "💡 Utilities",
-    "🏥 Healthcare",
-    "📚 Education",
-    "🎬 Entertainment",
-    "🛍️ Shopping",
-    "✈️ Travel",
-    "🏦 Savings",
-    "📦 Other"
+    "Housing",
+    "Food",
+    "Transport",
+    "Utilities",
+    "Healthcare",
+    "Education",
+    "Entertainment",
+    "Shopping",
+    "Travel",
+    "Savings",
+    "Other"
 ]
+
+# Kept identical to Expense Management's icon map on purpose — same
+# categories, same icons, so a category looks the same everywhere it
+# appears across the app. Display-only: the value saved to the
+# database is always the plain category string.
+CATEGORY_ICONS = {
+    "Housing": "🏠",
+    "Food": "🍔",
+    "Transport": "🚗",
+    "Utilities": "💡",
+    "Healthcare": "🏥",
+    "Education": "🎓",
+    "Entertainment": "🎬",
+    "Shopping": "🛍️",
+    "Travel": "✈️",
+    "Savings": "💰",
+    "Other": "📦"
+}
+
+
+def with_icon(category):
+    return f"{CATEGORY_ICONS.get(category, '📌')} {category}"
 
 # =====================================================
 # LOAD DATA
@@ -162,6 +184,7 @@ with st.expander(
         category = st.selectbox(
             "Budget Category",
             available_categories,
+            format_func=with_icon,
             key="add_budget_category"
         )
 
@@ -171,8 +194,8 @@ with st.expander(
 
             st.caption(
                 f"💡 You've already spent {money(category_spent)} on "
-                f"**{category}** this month — consider budgeting at "
-                f"least that much."
+                f"**{with_icon(category)}** this month — consider "
+                f"budgeting at least that much."
             )
 
         budget = st.number_input(
@@ -332,10 +355,18 @@ if not budget_df.empty:
             names="category",
             values="budget",
             hole=0.65,
-            color_discrete_sequence=px.colors.sequential.Purples_r
+            color_discrete_sequence=px.colors.qualitative.Set2
         )
 
-        fig.update_layout(height=420)
+        fig.update_traces(
+            textinfo="label+percent",
+            textposition="inside"
+        )
+
+        fig.update_layout(
+            height=420,
+            margin=dict(t=70, b=10, l=10, r=10)
+        )
 
         st.plotly_chart(
     fig,
@@ -422,7 +453,8 @@ if not budget_df.empty:
                 categories.index(selected_budget["category"])
                 if selected_budget["category"] in categories
                 else 0
-            )
+            ),
+            format_func=with_icon
         )
 
         edit_budget = st.number_input(
@@ -578,7 +610,7 @@ if not budget_df.empty:
         )
 
         st.write(
-            f"{status_icon} **{cat}** — {money(cat_spent)} of "
+            f"{status_icon} **{with_icon(cat)}** — {money(cat_spent)} of "
             f"{money(cat_budget)} spent this month "
             f"({progress * 100:.0f}%)"
         )

@@ -59,18 +59,40 @@ cursor = conn.cursor()
 # =====================================================
 
 categories = [
-    "🏡Housing",
-    "🥗Food",
-    "🚗Transport",
-    "💡Utilities",
-    "🏥Healthcare",
-    "📚Education",
-    "🎬Entertainment",
-    "🛍️Shopping",
-    "✈️Travel",
-    "🏦Savings",
-    "📦Other"
+    "Housing",
+    "Food",
+    "Transport",
+    "Utilities",
+    "Healthcare",
+    "Education",
+    "Entertainment",
+    "Shopping",
+    "Travel",
+    "Savings",
+    "Other"
 ]
+
+# Icons are DISPLAY-ONLY via format_func below — the actual value saved
+# to the database is always the plain category string. Baking the icon
+# into the string itself would break every category match against
+# existing records (grouping, budgets, filters, etc.).
+CATEGORY_ICONS = {
+    "Housing": "🏠",
+    "Food": "🍔",
+    "Transport": "🚗",
+    "Utilities": "💡",
+    "Healthcare": "🏥",
+    "Education": "🎓",
+    "Entertainment": "🎬",
+    "Shopping": "🛍️",
+    "Travel": "✈️",
+    "Savings": "💰",
+    "Other": "📦"
+}
+
+
+def with_icon(category):
+    return f"{CATEGORY_ICONS.get(category, '📌')} {category}"
 
 # =====================================================
 # LOAD DATA
@@ -204,6 +226,7 @@ with st.expander(
             "Category",
             categories,
             index=default_category_index,
+            format_func=with_icon,
             key="expense_category_input"
         )
 
@@ -507,10 +530,18 @@ if not expense_df.empty:
             names="category",
             values="amount",
             hole=0.65,
-            color_discrete_sequence=px.colors.sequential.Reds_r
+            color_discrete_sequence=px.colors.qualitative.Set2
         )
 
-        fig.update_layout(height=420)
+        fig.update_traces(
+            textinfo="label+percent",
+            textposition="inside"
+        )
+
+        fig.update_layout(
+            height=420,
+            margin=dict(t=70, b=10, l=10, r=10)
+        )
 
         st.plotly_chart(
     fig,
@@ -608,7 +639,7 @@ if not expense_df.empty and has_budget:
         )
 
         st.markdown(
-            f"{bar_color} **{cat}** — "
+            f"{bar_color} **{with_icon(cat)}** — "
             f"{money(cat_actual)} of {money(cat_budget)} "
             f"({(cat_actual / cat_budget) * 100:.0f}%)"
         )
@@ -658,7 +689,8 @@ if not expense_df.empty:
         edit_category = st.selectbox(
             "Category",
             categories,
-            index=current_category
+            index=current_category,
+            format_func=with_icon
         )
 
         edit_description = st.text_input(
@@ -808,7 +840,8 @@ if not expense_df.empty:
         category_filter = st.multiselect(
             "Category",
             options=sorted(expense_df["category"].unique()),
-            default=[]
+            default=[],
+            format_func=with_icon
         )
 
     with f3:

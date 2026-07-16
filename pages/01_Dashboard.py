@@ -338,9 +338,14 @@ with right_chart:
         color_discrete_sequence=["#2563EB", "#E5E7EB"]
     )
 
+    fig.update_traces(
+        textinfo="label+percent",
+        textposition="inside"
+    )
+
     fig.update_layout(
         height=450,
-        showlegend=False
+        margin=dict(t=70, b=10, l=10, r=10)
     )
 
     st.plotly_chart(
@@ -492,8 +497,14 @@ if not expenses.empty:
             hole=0.65
         )
 
+        fig.update_traces(
+            textinfo="label+percent",
+            textposition="inside"
+        )
+
         fig.update_layout(
-            height=450
+            height=450,
+            margin=dict(t=70, b=10, l=10, r=10)
         )
 
         st.plotly_chart(
