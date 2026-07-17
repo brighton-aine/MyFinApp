@@ -129,6 +129,26 @@ textarea {
     width: 100%;
 }
 
+/* The rule above sets color on the <button> element itself, but
+   Streamlit wraps a button's label text in its own inner <p> (via a
+   markdown container). The global "p, label, span { color: #475569 }"
+   rule further up this file matches that inner <p> directly, which
+   wins over inherited color from the button regardless of the
+   button's own !important — inheritance doesn't carry !important
+   down to a child that has its own matching rule. Forcing color on
+   every possible nested element closes that gap for good. */
+.stButton>button p,
+.stButton>button div,
+.stButton>button span {
+    color: white !important;
+}
+
+.stDownloadButton>button p,
+.stDownloadButton>button div,
+.stDownloadButton>button span {
+    color: white !important;
+}
+
 .stButton>button:hover {
 
     background: #1D4ED8 !important;

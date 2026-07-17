@@ -157,160 +157,290 @@ with st.expander(
         f"📅 Logged so far this month: **{money(this_month_so_far)}**"
     )
 
-    # Reset flag pattern: session_state for a widget's own key can't be
-    # mutated in the same run it's created, so the "snap back to Custom
-    # amount after picking a quick amount" reset has to happen at the
-    # TOP of the next run, before the selectbox below is instantiated.
-    if st.session_state.get("_reset_income_quick_amount"):
+    if "income_wizard_step" not in st.session_state:
+        st.session_state.income_wizard_step = 1
 
-        st.session_state["income_quick_amount_choice"] = "Custom amount"
-        st.session_state["_reset_income_quick_amount"] = False
+    wizard_step = st.session_state.income_wizard_step
 
-    quick_amount_options = [
-        "Custom amount", "+10,000", "+50,000", "+100,000", "+500,000", "+1,000,000"
-    ]
+    st.progress(wizard_step / 4)
+    st.caption(f"Step {wizard_step} of 4")
 
-    quick_choice = st.selectbox(
-        "⚡ Quick amount",
-        quick_amount_options,
-        key="income_quick_amount_choice",
-        help="Pick a preset to add it to the Amount field below."
+    STEP_HEADER = (
+        "font-size:24px; font-weight:800; color:#0F4C3E; "
+        "margin:10px 0 18px 0; line-height:1.3;"
     )
 
-    if quick_choice != "Custom amount":
+    # ---------- Completed-step summary, each editable via ✏️ ----------
 
-        qa_value = int(quick_choice.replace("+", "").replace(",", ""))
+    if wizard_step > 1:
 
-        st.session_state["income_amount_input"] = (
-            st.session_state.get("income_amount_input", 0.0) + qa_value
+        s1, s2 = st.columns([6, 1])
+
+        with s1:
+            st.markdown(
+                f"✅ **Date:** {st.session_state.get('wiz_income_date', date.today())}"
+            )
+
+        with s2:
+            if st.button("✏️", key="edit_step_income_1", help="Change date"):
+                st.session_state.income_wizard_step = 1
+                st.rerun()
+
+    if wizard_step > 2:
+
+        s1, s2 = st.columns([6, 1])
+
+        with s1:
+            st.markdown(
+                "✅ **Category:** "
+                f"{with_icon(st.session_state.get('wiz_income_category', default_category))}"
+            )
+
+        with s2:
+            if st.button("✏️", key="edit_step_income_2", help="Change category"):
+                st.session_state.income_wizard_step = 2
+                st.rerun()
+
+    if wizard_step > 3:
+
+        s1, s2 = st.columns([6, 1])
+
+        with s1:
+            desc_preview = st.session_state.get("wiz_income_description", "").strip()
+            st.markdown(
+                f"✅ **Description:** {desc_preview if desc_preview else '_(none)_'}"
+            )
+
+        with s2:
+            if st.button("✏️", key="edit_step_income_3", help="Change description"):
+                st.session_state.income_wizard_step = 3
+                st.rerun()
+
+    if wizard_step > 1:
+        st.write("")
+
+    # ---------- Step 1: Date ----------
+
+    if wizard_step == 1:
+
+        st.markdown(
+            f'<div style="{STEP_HEADER}">📅 When was this income received?</div>',
+            unsafe_allow_html=True
         )
 
-        st.session_state["_reset_income_quick_amount"] = True
-
-        st.rerun()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        income_date = st.date_input(
+        st.date_input(
             "Date",
-            value=date.today(),
-            key="income_date_input"
+            value=st.session_state.get("wiz_income_date", date.today()),
+            key="wiz_income_date",
+            label_visibility="collapsed"
         )
 
-        category = st.selectbox(
+        if st.button("Next →", type="primary", use_container_width=True):
+            st.session_state.income_wizard_step = 2
+            st.rerun()
+
+    # ---------- Step 2: Category ----------
+
+    elif wizard_step == 2:
+
+        st.markdown(
+            f'<div style="{STEP_HEADER}">🏷️ What category is this?</div>',
+            unsafe_allow_html=True
+        )
+
+        current_wiz_category = st.session_state.get(
+            "wiz_income_category", default_category
+        )
+
+        st.selectbox(
             "Category",
             categories,
-            index=default_category_index,
+            index=(
+                categories.index(current_wiz_category)
+                if current_wiz_category in categories
+                else default_category_index
+            ),
             format_func=with_icon,
-            key="income_category_input"
+            key="wiz_income_category",
+            label_visibility="collapsed"
         )
 
-    with col2:
+        back_col, next_col = st.columns(2)
 
-        description = st.text_input(
+        with back_col:
+            if st.button("← Back", use_container_width=True):
+                st.session_state.income_wizard_step = 1
+                st.rerun()
+
+        with next_col:
+            if st.button("Next →", type="primary", use_container_width=True):
+                st.session_state.income_wizard_step = 3
+                st.rerun()
+
+    # ---------- Step 3: Description ----------
+
+    elif wizard_step == 3:
+
+        st.markdown(
+            f'<div style="{STEP_HEADER}">📝 Add a description</div>',
+            unsafe_allow_html=True
+        )
+
+        st.text_input(
             "Description",
+            value=st.session_state.get("wiz_income_description", ""),
             placeholder='Optional, e.g. "July salary"',
-            key="income_description_input"
+            key="wiz_income_description",
+            label_visibility="collapsed"
         )
 
-        amount = st.number_input(
+        back_col, next_col = st.columns(2)
+
+        with back_col:
+            if st.button("← Back", use_container_width=True):
+                st.session_state.income_wizard_step = 2
+                st.rerun()
+
+        with next_col:
+            if st.button("Next →", type="primary", use_container_width=True):
+                st.session_state.income_wizard_step = 4
+                st.rerun()
+
+    # ---------- Step 4: Amount + Save ----------
+
+    elif wizard_step == 4:
+
+        st.markdown(
+            f'<div style="{STEP_HEADER}">💵 How much?</div>',
+            unsafe_allow_html=True
+        )
+
+        if st.session_state.get("_reset_income_quick_amount"):
+            st.session_state["income_quick_amount_choice"] = "Custom amount"
+            st.session_state["_reset_income_quick_amount"] = False
+
+        quick_amount_options = [
+            "Custom amount", "+10,000", "+50,000",
+            "+100,000", "+500,000", "+1,000,000"
+        ]
+
+        quick_choice = st.selectbox(
+            "⚡ Quick amount",
+            quick_amount_options,
+            key="income_quick_amount_choice",
+            help="Pick a preset to add it to the Amount field below."
+        )
+
+        if quick_choice != "Custom amount":
+
+            qa_value = int(quick_choice.replace("+", "").replace(",", ""))
+
+            st.session_state["income_amount_input"] = (
+                st.session_state.get("income_amount_input", 0.0) + qa_value
+            )
+
+            st.session_state["_reset_income_quick_amount"] = True
+
+            st.rerun()
+
+        wiz_amount = st.number_input(
             "Amount (UGX)",
             min_value=0.0,
             format="%.2f",
             key="income_amount_input"
         )
 
-    potential_duplicate = False
-
-    if not income_df.empty and amount > 0:
-
-        potential_duplicate = not income_df[
-            (income_df["date"] == pd.Timestamp(income_date)) &
-            (income_df["category"] == category) &
-            (income_df["amount"] == amount)
-        ].empty
-
-    if potential_duplicate:
-
-        st.warning(
-            "⚠️ A very similar income entry (same date, category and "
-            "amount) already exists."
+        wiz_date_final = st.session_state.get("wiz_income_date", date.today())
+        wiz_category_final = st.session_state.get(
+            "wiz_income_category", default_category
+        )
+        wiz_description_final = st.session_state.get(
+            "wiz_income_description", ""
         )
 
-    save_col1, save_col2 = st.columns([3, 1])
+        potential_duplicate = False
 
-    with save_col1:
+        if not income_df.empty and wiz_amount > 0:
 
-        submit = st.button(
-            "💾 Save Anyway" if potential_duplicate else "💾 Save Income",
-            use_container_width=True,
-            type="primary"
-        )
+            potential_duplicate = not income_df[
+                (income_df["date"] == pd.Timestamp(wiz_date_final)) &
+                (income_df["category"] == wiz_category_final) &
+                (income_df["amount"] == wiz_amount)
+            ].empty
 
-    with save_col2:
+        if potential_duplicate:
 
-        if st.session_state.get("income_amount_input", 0.0) > 0:
+            st.warning(
+                "⚠️ A very similar income entry (same date, category and "
+                "amount) already exists."
+            )
 
-            if st.button("↺ Clear", use_container_width=True):
+        back_col, save_col = st.columns([1, 2])
 
-                st.session_state["income_amount_input"] = 0.0
+        with back_col:
+            if st.button("← Back", use_container_width=True):
+                st.session_state.income_wizard_step = 3
                 st.rerun()
 
-if submit:
-
-    if amount <= 0:
-
-        st.error(
-            "Amount must be greater than zero."
-        )
-
-    else:
-
-        try:
-
-            cursor.execute(
-                """
-                INSERT INTO income
-                (
-                    date,
-                    category,
-                    description,
-                    amount
-                )
-                VALUES
-                (
-                    ?, ?, ?, ?
-                )
-                """,
-                (
-                    str(income_date),
-                    category,
-                    description.strip(),
-                    amount
-                )
+        with save_col:
+            submit = st.button(
+                "💾 Save Anyway" if potential_duplicate else "💾 Save Income",
+                use_container_width=True,
+                type="primary"
             )
 
-            conn.commit()
+        if submit:
 
-            # Clear amount + description so the next entry starts fresh,
-            # but leave date/category as-is — handy when logging several
-            # same-day, same-category entries back to back.
-            st.session_state["income_amount_input"] = 0.0
-            st.session_state["income_description_input"] = ""
+            if wiz_amount <= 0:
 
-            st.success(
-                "Income saved successfully."
-            )
+                st.error(
+                    "Amount must be greater than zero."
+                )
 
-            st.rerun()
+            else:
 
-        except Exception as e:
+                try:
 
-            st.error(
-                f"Error: {e}"
-            )
+                    cursor.execute(
+                        """
+                        INSERT INTO income
+                        (
+                            date,
+                            category,
+                            description,
+                            amount
+                        )
+                        VALUES
+                        (
+                            ?, ?, ?, ?
+                        )
+                        """,
+                        (
+                            str(wiz_date_final),
+                            wiz_category_final,
+                            wiz_description_final.strip(),
+                            wiz_amount
+                        )
+                    )
+
+                    conn.commit()
+
+                    # Reset the whole wizard for the next entry
+                    st.session_state.income_wizard_step = 1
+                    st.session_state["income_amount_input"] = 0.0
+                    st.session_state["wiz_income_description"] = ""
+
+                    st.success(
+                        "Income saved successfully."
+                    )
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    st.error(
+                        f"Error: {e}"
+                    )
 
 # =====================================================
 # KPI CARDS
